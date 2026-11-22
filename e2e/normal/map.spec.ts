@@ -47,6 +47,23 @@ test("says so when the device has no WebGL", async ({ page }) => {
   await expect(page.getByRole("combobox", { name: "Search the campus" })).toBeVisible();
 });
 
+test.describe("when a part of the map engine can't be downloaded", () => {
+  test.use({ allowedErrors: [/ERR_FAILED|Worker failed to load/] });
+
+  test("says so, and the rest works", async ({ page }) => {
+    await page.route("**/maplibre/**", (route) => route.abort());
+    await page.goto("/");
+    await expect(page.getByTestId("no-worker")).toContainText("could not be downloaded");
+    await page.getByRole("combobox", { name: "Search the campus" }).fill("canteen");
+    await page.getByRole("option", { name: /Demo Canteen/ }).click();
+    await expect(page.getByTestId("selection")).toBeVisible();
+
+    await page.unroute("**/maplibre/**");
+    await page.getByRole("button", { name: "Reload the page" }).click();
+    await expectMapDrawn(page);
+  });
+});
+
 test("information pages open and lead back", async ({ page }) => {
   await page.goto("/");
   for (const name of ["About", "Privacy", "Help"]) {

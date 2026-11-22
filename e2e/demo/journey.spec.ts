@@ -210,3 +210,21 @@ test("the destination survives a reload, the position and the room don't", async
   await page.getByRole("button", { name: "Remove it" }).click();
   expect(await page.evaluate(() => localStorage.getItem("jec-maps:destination"))).toBeNull();
 });
+
+test("the place editor gives a line for the spreadsheet, and drops no pin", async ({ page }) => {
+  const gps = new MockGps(page);
+  await gps.open("/?mock=1&edit=1");
+  await gps.preset("Standing on campus");
+  await page.getByRole("button", { name: "Enable location" }).click();
+  await expect(page.getByTestId("user-dot")).toBeVisible();
+
+  const spot = await onScreen(page, at(-25, -130));
+  await page.mouse.click(spot.x, spot.y);
+  const editor = page.getByRole("region", { name: "Place editor" });
+  await editor.getByRole("textbox", { name: "Name" }).fill("Cycle Stand, east");
+  await editor.getByRole("combobox", { name: "Category" }).selectOption("parking");
+
+  // lat before lng, as in the spreadsheet, and the comma in quotes.
+  await expect(editor.locator("pre")).toHaveText(/^cycle-stand-east,"Cycle Stand, east",,parking,26\.74\d+,94\.25\d+,/);
+  await expect(page.getByTestId("destination-pin")).toHaveCount(0);
+});

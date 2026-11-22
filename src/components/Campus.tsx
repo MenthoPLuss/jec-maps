@@ -162,7 +162,7 @@ export default function Campus({ gps, linked }: CampusProps) {
       {handle && (
         <MapOverlays
           handle={handle}
-          gestures={gps && teleporting ? "teleport" : !isOpen ? "none" : canGo ? "navigate" : "browse"}
+          gestures={editing || !isOpen ? "none" : gps && teleporting ? "teleport" : canGo ? "navigate" : "browse"}
           indoors={indoors}
           chosenRoomId={room?.id ?? goalRoomId}
           sheetHeight={sheetHeight}
@@ -194,13 +194,23 @@ export default function Campus({ gps, linked }: CampusProps) {
         </div>
       )}
 
-      {mapProblem === "no-webgl" && isOpen && (
+      {(mapProblem === "no-webgl" || mapProblem === "no-worker") && isOpen && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
-          <div role="alert" data-testid="no-webgl" className="max-w-sm rounded-2xl bg-surface p-5 text-sm text-ink shadow-xl">
-            <p className="font-bold">This device can&apos;t draw the map</p>
-            <p className="mt-1 text-ink-muted">
-              It needs WebGL, which is switched off or missing here. Search, distances and directions still work.
+          <div
+            role="alert"
+            data-testid={mapProblem}
+            className="pointer-events-auto max-w-sm space-y-2 rounded-2xl bg-surface p-5 text-sm text-ink shadow-xl"
+          >
+            <p className="font-bold">
+              {mapProblem === "no-webgl" ? "This device can't draw the map" : "The map could not be loaded"}
             </p>
+            <p className="text-ink-muted">
+              {mapProblem === "no-webgl"
+                ? "It needs WebGL, which is switched off or missing here. "
+                : "A part of it could not be downloaded. "}
+              Search, distances and directions still work.
+            </p>
+            {mapProblem === "no-worker" && <Button onClick={() => window.location.reload()}>Reload the page</Button>}
           </div>
         </div>
       )}

@@ -54,7 +54,24 @@ test.describe("when the provider is down", () => {
   });
 });
 
+test("the choice can be changed later", async ({ page }) => {
+  const requests: string[] = [];
+  await page.route(`https://${HOST}/**`, (route) => {
+    requests.push(route.request().url());
+    return route.fulfill({ json: style });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Load street map" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+
+  await page.getByRole("link", { name: "Privacy", exact: true }).click();
+  await page.getByRole("checkbox", { name: /Street map/ }).uncheck();
+  await page.goto("/");
+  await expectMapDrawn(page);
+  expect(requests).toHaveLength(1);
+});
+
 test("the privacy page names the provider", async ({ page }) => {
   await page.goto("/privacy");
-  await expect(page.getByText(HOST)).toBeVisible();
+  await expect(page.getByText(HOST).first()).toBeVisible();
 });

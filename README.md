@@ -18,11 +18,17 @@ a student, in the open, one phase at a time.
 | 6 | Search, walking routes, arrival: the MVP | Done |
 | 7 | Building, floor and room guidance | Done |
 | 8 | Polish, accessibility, "Add to Home Screen" | Done |
-| 9 | Full browser tests and release notes | Next |
+| 9 | Full browser tests and release notes | Done |
 
 **There is no surveyed campus data yet.** Until there is, the app can only be
 demonstrated with made-up data and a fake GPS. It must not be used to find your
 way around the real campus.
+
+| Locked | Route | Inside |
+| ------ | ----- | ------ |
+| ![Locked screen with the distance](docs/screenshots/02-locked.png) | ![Walking route](docs/screenshots/05-route.png) | ![Floor plan](docs/screenshots/10-floor-1.png) |
+
+All pictures show the made-up demo campus.
 
 ## What it does
 
@@ -62,6 +68,7 @@ Open <http://localhost:3000>.
 | `npm test` | Unit tests |
 | `npm run test:e2e` | Browser tests. The first time, run `npx playwright install chromium` |
 | `npm run data:validate` | Check the campus data |
+| `npm run screenshots` | New pictures for the docs, from the demo campus |
 
 ## Try it with a fake GPS
 
@@ -88,9 +95,7 @@ npm run build
 npm start
 ```
 
-and in a second terminal, with
-[cloudflared](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/)
-installed:
+and in a second terminal, with cloudflared installed:
 
 ```bash
 cloudflared tunnel --url http://localhost:3000
@@ -99,6 +104,8 @@ cloudflared tunnel --url http://localhost:3000
 Open the https address that it prints. While the tunnel runs, anyone with that
 address can open the app, so stop it when you are done. With the demo data the
 app only checks your signal; it does not guide you.
+
+[docs/deploy.md](docs/deploy.md) has more, and how to put it online.
 
 ## Settings
 
@@ -113,6 +120,7 @@ The app shows a made-up demo campus until real, reviewed data exists.
 - [Collecting campus data](docs/data-collection.md): the guide for students
 - [Floor plans](docs/indoor-data.md): how they are drawn, and how far to trust them
 - [How it works](docs/architecture.md): from files to the map, and the rules
+- [Performance](docs/performance.md): what was measured
 
 ## Data conventions
 

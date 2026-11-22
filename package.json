@@ -22,7 +22,8 @@
     "data:build": "tsx scripts/build-data.ts",
     "data:approve": "tsx scripts/approve-data.ts",
     "demo": "node scripts/demo.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@turf/boolean-point-in-polygon": "^7.4.0",

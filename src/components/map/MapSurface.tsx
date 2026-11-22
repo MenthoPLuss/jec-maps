@@ -22,10 +22,11 @@ export interface MapHandle {
 
 /**
  * - `no-webgl`: this device can't draw the map at all.
+ * - `no-worker`: a part of the map engine could not be downloaded.
  * - `context-lost`: the graphics card was reset. The map comes back by itself.
  * - `online-failed`: the street map can't be loaded. The campus shapes still work.
  */
-export type MapProblem = "no-webgl" | "context-lost" | "online-failed";
+export type MapProblem = "no-webgl" | "no-worker" | "context-lost" | "online-failed";
 
 interface MapSurfaceProps {
   dataset: PublishedDataset;
@@ -112,7 +113,10 @@ export default function MapSurface(props: MapSurfaceProps) {
     });
     map.on("webglcontextrestored", () => reportProblem(null));
     // With a listener MapLibre reports errors here instead of throwing them.
-    map.on("error", ({ error }) => console.warn("Map:", error?.message ?? error));
+    map.on("error", ({ error }) => {
+      console.warn("Map:", error?.message ?? error);
+      if (/worker/i.test(error?.message ?? "")) reportProblem("no-worker");
+    });
 
     let alive = true;
     const created: MapHandle = { map, registry, isAlive: () => alive };

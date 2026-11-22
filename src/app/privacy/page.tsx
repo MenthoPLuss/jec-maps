@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import OnlineMapSetting from "@/components/ui/OnlineMapSetting";
 import TextPage from "@/components/ui/TextPage";
 import { config } from "@/lib/config";
 import { providerName } from "@/lib/map/basemap";
@@ -35,6 +36,8 @@ export default function PrivacyPage() {
           )}
         </li>
       </ul>
+
+      {config.basemapMode === "online" && <OnlineMapSetting />}
 
       <h2>What the app can&apos;t control</h2>
       <p>

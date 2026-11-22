@@ -66,3 +66,46 @@ the current data.
 Always `[longitude, latitude]`, metres and seconds. "lat, lng" is turned around in
 exactly three places: the CSV importer, the GPX/photo/OpenStreetMap importers, and
 the adapter for the browser's location.
+
+## What the app knows, kept apart
+
+| Piece | Who changes it |
+| ----- | -------------- |
+| Position and its quality | the GPS |
+| On campus or not | several reliable fixes, never one, never time alone |
+| A question about a building | GPS near a door or a wall, or GPS that goes quiet at a door |
+| Building, floor and room where you are | **only you** |
+| Building and floor you are looking at | only you, and it moves nobody |
+| Destination | only you |
+| Route, progress, arrival | the route search, your position, or you |
+
+All of it is one pure function: `reduce(state, event, now, world)` in
+`src/lib/state`. It never reads a clock or a sensor, so every rule has a test. All
+thresholds are in `src/lib/state/policy.ts`. They shape the interface; they are no
+security.
+
+`CampusController` connects it to the GPS, the clock and the route search. It lives
+outside React, so a new position moves the dot without redrawing the interface.
+
+## Routes
+
+- Outside: A* over the usable paths, in metres. Both ends join the nearest path
+  within 20 m, never through a building. The gap is drawn dashed: nobody has
+  checked it. Without a path in reach there is a labelled straight line instead.
+- Into or out of a room: one network of paths, doors, corridors, stairs and lifts,
+  in seconds, without a heuristic.
+- Progress is a projection onto the route. A new route is computed when the
+  destination or a setting changes, or after leaving the route for a while.
+- "Avoid stairs" removes stairs. If nothing is left, the app says so.
+- Arrival needs two accurate fixes, three seconds apart. A door is never an arrival
+  in a room.
+
+## Tests
+
+| Command | What it proves |
+| ------- | -------------- |
+| `npm test` | the rules, with made-up fixes and a controllable clock |
+| `npm run test:e2e` | the app, in three builds: normal, demo, online map |
+
+Every browser test also fails on a request to another site, on any request that
+carries a coordinate, and on an error in the console.
