@@ -3,10 +3,11 @@
 import { Map as MapLibreMap, NavigationControl, setWorkerUrl } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
+import { prefersReducedMotion } from "@/hooks/useReducedMotion";
 import { config } from "@/lib/config";
 import type { PublishedDataset } from "@/lib/data/published";
 import { labelFonts, localStyle, onlineStyle } from "@/lib/map/basemap";
-import { createAppRegistry, staticMapData, type AppSource } from "@/lib/map/layers";
+import { WORLD, createAppRegistry, staticMapData, type AppSource } from "@/lib/map/layers";
 import type { LayerRegistry } from "@/lib/map/registry";
 import { MAP_THEMES, type ThemeName } from "@/lib/map/theme";
 
@@ -29,6 +30,8 @@ interface MapSurfaceProps {
   theme: ThemeName;
   /** Show the street map of the provider. Only after the visitor agreed. */
   online: boolean;
+  /** A building is being looked at: what is outside fades. */
+  indoors: boolean;
   /** False locks the map: it can be seen, but not moved. */
   interactive: boolean;
   /** Called with the map once it exists, and with null when it goes away. */
@@ -50,13 +53,14 @@ function configureWorker(): void {
 }
 
 export default function MapSurface(props: MapSurfaceProps) {
-  const { dataset, online, interactive, onHandle, onProblem } = props;
+  const { dataset, indoors, online, interactive, onHandle, onProblem } = props;
   // A provider's street map is light, so our shapes on top of it are light as well.
   const theme = online ? "light" : props.theme;
   const container = useRef<HTMLDivElement>(null);
   const [handle, setHandle] = useState<MapHandle | null>(null);
 
   const currentTheme = useEffectEvent(() => theme);
+  const isIndoors = useEffectEvent(() => indoors);
   const reportHandle = useEffectEvent(onHandle);
   const reportProblem = useEffectEvent(onProblem);
 
@@ -89,9 +93,16 @@ export default function MapSurface(props: MapSurfaceProps) {
     const registry = createAppRegistry((error) => console.warn("Map data could not be updated.", error));
     for (const [id, data] of Object.entries(staticMapData(dataset))) registry.setData(id as AppSource, data);
 
+    registry.setData("world", WORLD);
+
     // Every new style starts empty, whether it is the first or a replacement.
     map.on("style.load", () => {
-      registry.attach(map, { theme: currentTheme(), fonts: labelFonts(map.getStyle()) });
+      registry.attach(map, {
+        theme: currentTheme(),
+        fonts: labelFonts(map.getStyle()),
+        indoors: isIndoors(),
+        still: prefersReducedMotion(),
+      });
     });
     map.on("webglcontextlost", () => {
       registry.detach();
@@ -119,11 +130,16 @@ export default function MapSurface(props: MapSurfaceProps) {
   useEffect(() => {
     if (!handle) return;
     const { map, registry } = handle;
-    registry.setTheme(theme);
+    registry.setLook({ theme });
     if (map.getLayer("background")) {
       map.setPaintProperty("background", "background-color", MAP_THEMES[theme].background);
     }
   }, [handle, theme]);
+
+  // Outside or inside a building.
+  useEffect(() => {
+    handle?.registry.setLook({ indoors, still: prefersReducedMotion() });
+  }, [handle, indoors]);
 
   // Local or online.
   useEffect(() => {

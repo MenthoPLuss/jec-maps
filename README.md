@@ -16,8 +16,8 @@ a student, in the open, one phase at a time.
 | 4 | Real GPS and a fake GPS for testing | Done |
 | 5 | "Are you on campus?" logic | Done |
 | 6 | Search, walking routes, arrival: the MVP | Done |
-| 7 | Building, floor and room guidance | Next |
-| 8 | Polish, accessibility, "Add to Home Screen" | Planned |
+| 7 | Building, floor and room guidance | Done |
+| 8 | Polish, accessibility, "Add to Home Screen" | Next |
 | 9 | Full browser tests and release notes | Planned |
 
 **There is no surveyed campus data yet.** Until there is, the app can only be
@@ -33,6 +33,8 @@ way around the real campus.
 - Walking routes over reviewed paths, with distance, time and arrival. Ground that
   nobody checked is dashed. Without a route there is a labelled straight line.
 - It asks whether you are inside a building. It never decides that for you.
+- Floor plans or room lists, steps inside, lifts instead of stairs on request.
+- Links to rooms that also work outside campus.
 - Works without any other site: no tiles, fonts or trackers.
 
 ## Run it

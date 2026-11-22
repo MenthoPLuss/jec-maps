@@ -24,15 +24,36 @@ export function begin(state: AppState, world: World, previous: ActiveNavigation 
 
 function whatIsMissing(state: AppState, world: World): WaitingReason | null {
   if (state.source && !world.capabilities(state.source).guidance) return "not-allowed";
+  // Whoever said where they are needs no GPS: indoors it is useless anyway.
+  if (knowsPlace(state) && state.presence.status === "inside") return null;
   if (!state.fix || !isUsable(state.quality)) return "no-position";
   if (state.presence.status === "outside") return "outside";
   return state.presence.status === "inside" ? null : "no-position";
 }
 
+/** The user has said which building they are in, and it still holds. */
+export function knowsPlace({ confirmed }: Pick<AppState, "confirmed">): boolean {
+  return confirmed !== null && !confirmed.needsReconfirm;
+}
+
+/** Asks again when there is a route to ask for. */
+export function again(state: AppState, world: World): AppState {
+  const { navigation } = state;
+  switch (navigation.status) {
+    case "active":
+      return begin(state, world, navigation);
+    case "no-route":
+    case "computing":
+    case "waiting":
+      return begin(state, world);
+    default:
+      return state;
+  }
+}
+
 export function takeResult(state: AppState, requestId: number, result: RouteResult, now: number): AppState {
   // An answer to an older question: the destination has changed since.
   if (state.navigation.status !== "computing" || state.navigation.requestId !== requestId) return state;
-  if (!state.fix) return state;
 
   if (!result.ok) {
     return {
@@ -41,7 +62,7 @@ export function takeResult(state: AppState, requestId: number, result: RouteResu
         status: "no-route",
         reason: result.reason,
         straightLineM: result.straightLineM,
-        from: state.fix.position,
+        from: knowsPlace(state) ? null : (state.fix?.position ?? null),
         near: false,
         arrival: null,
       },
@@ -76,10 +97,13 @@ export function followFix(state: AppState, fix: Fix, now: number, world: World):
 
     case "active":
       if (state.presence.status !== "inside") return begin(state, world);
+      // Inside, GPS says nothing about progress: the user moves the steps on.
+      if (knowsPlace(state)) return state;
       return followRoute(state, navigation, fix, now, world);
 
     case "no-route": {
       if (state.presence.status !== "inside") return begin(state, world);
+      if (navigation.from === null) return state;
       const moved = distanceM(navigation.from, fix.position) > 10;
       if (moved) return begin(state, world);
       return followStraightLine(state, navigation, fix, world);

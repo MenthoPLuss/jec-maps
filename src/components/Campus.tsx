@@ -3,6 +3,11 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import BuildingBar from "@/components/indoor/BuildingBar";
+import BuildingPanel from "@/components/indoor/BuildingPanel";
+import ConfirmedCard from "@/components/indoor/ConfirmedCard";
+import FloorSwitcher from "@/components/indoor/FloorSwitcher";
+import RoomCard from "@/components/indoor/RoomCard";
 import MapOverlays from "@/components/map/MapOverlays";
 import MapSurface, { type MapHandle, type MapProblem } from "@/components/map/MapSurface";
 import NavigationCard from "@/components/nav/NavigationCard";
@@ -47,7 +52,12 @@ function screenOf({ presence, provider }: AppState): Exclude<Screen, "browse"> {
   return provider.status === "failed" ? "problem" : "finding";
 }
 
-export default function Campus({ gps }: { gps: MockLocationProvider | null }) {
+interface CampusProps {
+  gps: MockLocationProvider | null;
+  linked?: Destination;
+}
+
+export default function Campus({ gps, linked }: CampusProps) {
   const controller = useController();
   const { dataset, dispatch } = controller;
   const editing = isEditorRequested(config, useSearchParams());
@@ -60,18 +70,29 @@ export default function Campus({ gps }: { gps: MockLocationProvider | null }) {
   const problem = useAppState(({ provider }) => (provider.status === "failed" ? provider.problem : null));
   const hasDestination = useAppState((state) => state.destination !== null);
   const hasSuggestion = useAppState((state) => state.suggestion !== null);
+  const indoors = useAppState((state) => state.view !== null);
+  const isConfirmed = useAppState((state) => state.confirmed !== null);
+  const goalRoomId = useAppState(({ destination }) => (destination?.kind === "room" ? destination.id : null));
 
   const [handle, setHandle] = useState<MapHandle | null>(null);
   const [mapProblem, setMapProblem] = useState<MapProblem | null>(null);
   const [following, setFollowing] = useState(true);
-  const [selection, setSelection] = useState<Destination | null>(null);
+  // Where the map may only be looked at, a shared room opens right away.
+  const [selection, setSelection] = useState<Destination | null>(capabilities.presence ? null : (linked ?? null));
   const [size, setSize] = useState<SheetSize>("peek");
   const [sheetHeight, setSheetHeight] = useState(0);
   const [teleporting, setTeleporting] = useState(false);
   const [clicked, setClicked] = useState<LngLat | null>(null);
 
+  const room = selection?.kind === "room" ? dataset.rooms.find(({ id }) => id === selection.id) : undefined;
   const isOpen = screen === "campus" || screen === "browse";
   const canGo = screen === "campus" && capabilities.guidance;
+
+  // Going into a building or out of it: the map matters most.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- follows a change outside React
+    setSize("peek");
+  }, [indoors]);
 
   useDemoHook(handle);
   useEditorClicks(handle, editing, setClicked);
@@ -96,6 +117,11 @@ export default function Campus({ gps }: { gps: MockLocationProvider | null }) {
     [handle, sheetHeight],
   );
 
+  const exitBuilding = () => {
+    dispatch({ type: "view/closed" });
+    if (screen === "campus") setFollowing(true);
+  };
+
   const setDestination = (destination: Destination) => {
     setSelection(null);
     dispatch({ type: "destination/set", destination });
@@ -104,18 +130,23 @@ export default function Campus({ gps }: { gps: MockLocationProvider | null }) {
   const choose = ({ destination }: SearchItem) => {
     const info = destinationInfo(dataset, destination);
     if (!info) return;
+    dispatch({ type: "view/closed" });
     lookAt(info.position, canGo ? (controller.getState().fix?.position ?? null) : null);
     if (canGo) setDestination(destination);
     else setSelection(destination);
   };
 
   return (
-    <div className="absolute inset-0" style={{ "--sheet-height": `${sheetHeight}px` } as React.CSSProperties}>
+    <div
+      className="absolute inset-0"
+      style={{ "--sheet-height": `${sheetHeight}px`, "--top-height": indoors ? "8rem" : "4.5rem" } as React.CSSProperties}
+    >
       {mapProblem !== "no-webgl" && (
         <MapSurface
           dataset={dataset}
           theme={theme}
           online={online.allowed === true}
+          indoors={indoors && isOpen}
           interactive={isOpen}
           onHandle={setHandle}
           onProblem={setMapProblem}
@@ -125,7 +156,10 @@ export default function Campus({ gps }: { gps: MockLocationProvider | null }) {
         <MapOverlays
           handle={handle}
           gestures={gps && teleporting ? "teleport" : !isOpen ? "none" : canGo ? "navigate" : "browse"}
-          following={following}
+          indoors={indoors}
+          chosenRoomId={room?.id ?? goalRoomId}
+          sheetHeight={sheetHeight}
+          following={following && !indoors}
           onMoved={() => setFollowing(false)}
           onPin={(position) => setDestination({ kind: "pin", position })}
           onPick={setSelection}
@@ -135,6 +169,7 @@ export default function Campus({ gps }: { gps: MockLocationProvider | null }) {
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center gap-2 px-3 pt-[calc(var(--safe-top)+0.75rem)]">
         {isOpen && <SearchBox dataset={dataset} onSelect={choose} />}
+        {isOpen && <BuildingBar onExit={exitBuilding} />}
         <div className="flex flex-wrap justify-center gap-2">
           {dataset.mode === "demo" && <Badge testId="demo-badge">Demo data: not the real campus</Badge>}
           {screen === "campus" && <QualityBadge />}
@@ -164,7 +199,12 @@ export default function Campus({ gps }: { gps: MockLocationProvider | null }) {
       )}
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2">
-        {screen === "campus" && mapProblem !== "no-webgl" && (
+        {isOpen && indoors && (
+          <div className="flex w-full max-w-xl justify-end px-3">
+            <FloorSwitcher />
+          </div>
+        )}
+        {screen === "campus" && !indoors && mapProblem !== "no-webgl" && (
           <div className="flex w-full max-w-xl justify-end px-3">
             <MapControls
               following={following}
@@ -200,20 +240,34 @@ export default function Campus({ gps }: { gps: MockLocationProvider | null }) {
         <BottomSheet
           size={size}
           onResize={setSize}
-          resizable={screen === "campus" && hasDestination && !selection && !hasSuggestion}
+          resizable={isOpen && !selection && (indoors || (hasDestination && screen === "campus" && !hasSuggestion))}
           onHeight={setSheetHeight}
         >
-          {screen === "browse" && !selection && <BrowseNotice reasons={capabilities.reasons} />}
-          {selection && isOpen ? (
+          {isOpen && room ? (
+            <RoomCard room={room} onCampus={screen === "campus"} canGo={canGo} onClose={() => setSelection(null)} />
+          ) : isOpen && selection ? (
             <SelectionCard selection={selection} canGo={canGo} onClose={() => setSelection(null)} />
           ) : (
-            screen === "campus" && (
-              <>
-                <SuggestionCard />
-                {hasDestination ? <NavigationCard expanded={size !== "peek"} /> : <Hint canGo={canGo} />}
-                <StopButton />
-              </>
-            )
+            <>
+              {screen === "browse" && !indoors && <BrowseNotice reasons={capabilities.reasons} />}
+              {screen === "campus" && (
+                <>
+                  <SuggestionCard />
+                  {isConfirmed && !indoors && (
+                    <div className="px-4 pt-4">
+                      <ConfirmedCard />
+                    </div>
+                  )}
+                  {hasDestination ? (
+                    <NavigationCard expanded={size !== "peek"} />
+                  ) : (
+                    !indoors && <Hint canGo={canGo} />
+                  )}
+                </>
+              )}
+              {isOpen && indoors && <BuildingPanel onCampus={screen === "campus"} onPick={setSelection} />}
+              {screen === "campus" && !indoors && <StopButton />}
+            </>
           )}
         </BottomSheet>
       </div>

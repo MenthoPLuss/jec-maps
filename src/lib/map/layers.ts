@@ -1,15 +1,24 @@
 /** Every source and layer that the app draws itself. */
 import type { AddLayerObject } from "maplibre-gl";
 
-import type { PublishedDataset } from "../data/published";
+import type { IndoorPlans, PublishedDataset } from "../data/published";
+import type { Room } from "../data/schemas";
 import type { LngLat } from "../geo/types";
-import type { Route } from "../routing/route";
+import type { IndoorPath, Route } from "../routing/route";
 import { LayerRegistry, type FeatureCollection, type LayerLook } from "./registry";
 import { MAP_THEMES } from "./theme";
 
 /** Drawn once, from the dataset. */
 export type StaticSource = "campus" | "paths" | "buildings" | "entrances" | "places";
-export type AppSource = StaticSource | "route" | "user";
+export type AppSource =
+  | StaticSource
+  | "route"
+  | "user"
+  | "world"
+  | "indoorRooms"
+  | "indoorLines"
+  | "indoorPoints"
+  | "indoorRoute";
 
 const SOURCES: Record<AppSource, object> = {
   campus: {},
@@ -19,6 +28,11 @@ const SOURCES: Record<AppSource, object> = {
   places: {},
   route: {},
   user: {},
+  world: {},
+  indoorRooms: {},
+  indoorLines: {},
+  indoorPoints: {},
+  indoorRoute: {},
 };
 
 export function createAppRegistry(onError?: (error: unknown) => void): LayerRegistry<AppSource> {
@@ -26,8 +40,11 @@ export function createAppRegistry(onError?: (error: unknown) => void): LayerRegi
 }
 
 /** Bottom to top. */
-export function appLayers({ theme, fonts }: LayerLook): AddLayerObject[] {
+export function appLayers({ theme, fonts, indoors, still }: LayerLook): AddLayerObject[] {
   const colour = MAP_THEMES[theme];
+  const fade = { duration: still ? 0 : 300 };
+  /** What is outside fades while a building is being looked at. */
+  const outside = indoors ? 0 : 1;
 
   return [
     {
@@ -86,6 +103,96 @@ export function appLayers({ theme, fonts }: LayerLook): AddLayerObject[] {
       type: "line",
       source: "buildings",
       paint: { "line-color": colour.buildingLine, "line-width": 1.2 },
+    },
+    {
+      // A veil over everything outside. The entrances stay on top of it.
+      id: "veil",
+      type: "fill",
+      source: "world",
+      paint: { "fill-color": colour.background, "fill-opacity": indoors ? 0.75 : 0, "fill-opacity-transition": fade },
+    },
+    {
+      id: "indoor-rooms-fill",
+      type: "fill",
+      source: "indoorRooms",
+      paint: {
+        "fill-color": [
+          "case",
+          ["get", "confirmed"],
+          colour.user,
+          ["get", "chosen"],
+          colour.route,
+          ["match", ["get", "type"], ["stairs", "lift", "toilet", "store"], colour.corridor, colour.room],
+        ],
+        "fill-opacity": ["case", ["any", ["get", "confirmed"], ["get", "chosen"]], 0.45, 1],
+      },
+    },
+    {
+      id: "indoor-rooms-outline",
+      type: "line",
+      source: "indoorRooms",
+      paint: { "line-color": colour.roomLine, "line-width": 1 },
+    },
+    {
+      id: "indoor-corridors",
+      type: "line",
+      source: "indoorLines",
+      layout: { "line-cap": "round" },
+      paint: { "line-color": colour.corridor, "line-width": 3, "line-dasharray": [1, 1.5] },
+    },
+    {
+      id: "indoor-route-other",
+      type: "line",
+      source: "indoorRoute",
+      filter: ["all", ["==", ["get", "kind"], "line"], ["!", ["get", "current"]]],
+      paint: { "line-color": colour.route, "line-width": 3, "line-opacity": 0.6, "line-dasharray": [1.5, 1.5] },
+    },
+    {
+      id: "indoor-route",
+      type: "line",
+      source: "indoorRoute",
+      filter: ["all", ["==", ["get", "kind"], "line"], ["get", "current"]],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": colour.route, "line-width": 5 },
+    },
+    {
+      id: "indoor-points",
+      type: "circle",
+      source: "indoorPoints",
+      minzoom: 17.5,
+      paint: {
+        "circle-radius": ["case", ["==", ["get", "kind"], "door"], 2.5, 5],
+        "circle-color": ["case", ["==", ["get", "kind"], "door"], colour.roomLine, colour.entrance],
+        "circle-stroke-color": colour.labelHalo,
+        "circle-stroke-width": 1,
+      },
+    },
+    {
+      id: "indoor-labels",
+      type: "symbol",
+      source: "indoorRooms",
+      minzoom: 17,
+      layout: {
+        "text-field": ["get", "label"],
+        "text-font": fonts,
+        "text-size": ["interpolate", ["linear"], ["zoom"], 17, 9, 19, 13],
+        "text-max-width": 6,
+      },
+      paint: { "text-color": colour.label, "text-halo-color": colour.labelHalo, "text-halo-width": 1.5 },
+    },
+    {
+      id: "indoor-route-changes",
+      type: "symbol",
+      source: "indoorRoute",
+      filter: ["==", ["get", "kind"], "change"],
+      layout: {
+        "text-field": ["get", "label"],
+        "text-font": fonts,
+        "text-size": 13,
+        "text-allow-overlap": true,
+        "text-offset": [0, -1.2],
+      },
+      paint: { "text-color": colour.route, "text-halo-color": colour.labelHalo, "text-halo-width": 2 },
     },
     {
       id: "user-accuracy",
@@ -164,6 +271,8 @@ export function appLayers({ theme, fonts }: LayerLook): AddLayerObject[] {
         "circle-color": colour.place,
         "circle-stroke-color": colour.labelHalo,
         "circle-stroke-width": 1.5,
+        "circle-opacity": outside,
+        "circle-stroke-opacity": outside,
       },
     },
     {
@@ -180,7 +289,13 @@ export function appLayers({ theme, fonts }: LayerLook): AddLayerObject[] {
         "text-radial-offset": 0.8,
         "text-max-width": 8,
       },
-      paint: { "text-color": colour.label, "text-halo-color": colour.labelHalo, "text-halo-width": 1.5 },
+      paint: {
+        "text-color": colour.label,
+        "text-halo-color": colour.labelHalo,
+        "text-halo-width": 1.5,
+        "text-opacity": outside,
+        "text-opacity-transition": fade,
+      },
     },
     {
       id: "buildings-label",
@@ -193,7 +308,13 @@ export function appLayers({ theme, fonts }: LayerLook): AddLayerObject[] {
         "text-size": ["interpolate", ["linear"], ["zoom"], 15, 11, 18, 15],
         "text-max-width": 7,
       },
-      paint: { "text-color": colour.label, "text-halo-color": colour.labelHalo, "text-halo-width": 1.5 },
+      paint: {
+        "text-color": colour.label,
+        "text-halo-color": colour.labelHalo,
+        "text-halo-width": 1.5,
+        "text-opacity": outside,
+        "text-opacity-transition": fade,
+      },
     },
   ];
 }
@@ -264,4 +385,91 @@ export function straightLine(from: LngLat, to: LngLat): FeatureCollection {
   return collection([
     { type: "Feature", properties: { kind: "straight" }, geometry: { type: "LineString", coordinates: [from, to] } },
   ]);
+}
+
+/** The whole world: the veil is drawn over it. */
+export const WORLD: FeatureCollection = collection([
+  {
+    type: "Feature",
+    properties: {},
+    geometry: { type: "Polygon", coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]] },
+  },
+]);
+
+const ROOM_LABELS: Partial<Record<Room["type"], string>> = { stairs: "Stairs", lift: "Lift", toilet: "WC" };
+
+/** One floor of a building. */
+export function indoorPlan(
+  plans: IndoorPlans | null,
+  level: number,
+  rooms: Room[],
+  chosenRoomId: string | null,
+  confirmedRoomId: string | null,
+): { rooms: FeatureCollection; lines: FeatureCollection; points: FeatureCollection } {
+  const features = plans?.levels.find((plan) => plan.level === level)?.features ?? [];
+
+  return {
+    rooms: collection(
+      features.flatMap(({ geometry, properties }) => {
+        if (properties.featureType !== "room") return [];
+        const room = rooms.find((candidate) => candidate.id === properties.roomId);
+        if (!room) return [];
+        return feature(
+          { geometry },
+          {
+            id: room.id,
+            type: room.type,
+            label: room.roomNumber || ROOM_LABELS[room.type] || room.name,
+            chosen: room.id === chosenRoomId,
+            confirmed: room.id === confirmedRoomId,
+          },
+        );
+      }),
+    ),
+    lines: collection(
+      features.flatMap(({ geometry, properties }) =>
+        properties.featureType === "corridor" ? feature({ geometry }, { id: properties.id }) : [],
+      ),
+    ),
+    points: collection(
+      features.flatMap(({ geometry, properties }) => {
+        if (properties.featureType === "door") return feature({ geometry }, { kind: "door" });
+        if (properties.featureType === "vertical") return feature({ geometry }, { kind: properties.kind });
+        return [];
+      }),
+    ),
+  };
+}
+
+/** The route inside: the floor that is shown, the other floors, and where it changes. */
+export function indoorRoute(
+  paths: (IndoorPath | null)[],
+  level: number,
+  nameOf: (level: number) => string,
+): FeatureCollection {
+  return collection(
+    paths.flatMap((path) =>
+      (path?.pieces ?? []).flatMap((piece): GeoJSON.Feature[] => {
+        if (piece.kind === "walk") {
+          return [
+            {
+              type: "Feature",
+              properties: { kind: "line", current: piece.level === level },
+              geometry: { type: "LineString", coordinates: piece.coordinates },
+            },
+          ];
+        }
+        if (piece.level !== level && piece.toLevel !== level) return [];
+        // On the way up, the upper floor says where you come from.
+        const other = piece.level === level ? piece.toLevel : piece.level;
+        return [
+          {
+            type: "Feature",
+            properties: { kind: "change", current: true, label: `${other > level ? "↑" : "↓"} ${nameOf(other)}` },
+            geometry: { type: "Point", coordinates: piece.position },
+          },
+        ];
+      }),
+    ),
+  );
 }

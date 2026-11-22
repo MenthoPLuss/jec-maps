@@ -79,6 +79,41 @@ test.describe("with reviewed data", () => {
     });
   });
 
+  test.describe("after a while in the background", () => {
+    test.use({ geolocation: place(at(0, -150)), permissions: ["geolocation"] });
+
+    test("the user is asked whether they are still in that building", async ({ page, context }) => {
+      await page.clock.install();
+      const setHidden = (hidden: boolean) =>
+        page.evaluate((value) => {
+          Object.defineProperty(document, "hidden", { configurable: true, get: () => value });
+          document.dispatchEvent(new Event("visibilitychange"));
+        }, hidden);
+
+      await page.goto("/");
+      await page.getByRole("button", { name: "Enable location" }).click();
+      await page.clock.runFor(1_500);
+      await page.waitForTimeout(1_300);
+      await context.setGeolocation(place(at(0, -149)));
+      await expect(page.getByTestId("quality")).toBeVisible();
+
+      await page.getByRole("combobox", { name: "Search the campus" }).fill("A-001");
+      await page.getByRole("option", { name: /A-001/ }).click();
+      await page.getByRole("button", { name: "Show more" }).click();
+      await page.getByTestId("steps").getByRole("button", { name: "Next step" }).click();
+      await page.getByRole("button", { name: "Show more" }).click();
+      await page.getByRole("button", { name: "I'm inside this building" }).click();
+      await expect(page.getByTestId("confirmed")).toContainText("You said you are in: Demo Block A");
+
+      await setHidden(true);
+      await page.clock.fastForward(180_000);
+      await setHidden(false);
+      await expect(page.getByTestId("confirmed")).toContainText("Are you still here?");
+      await page.getByTestId("confirmed").getByRole("button", { name: "Yes" }).click();
+      await expect(page.getByTestId("confirmed")).toContainText("You said you are in: Demo Block A");
+    });
+  });
+
   test.describe("and no permission", () => {
     test.use({ permissions: [] });
 

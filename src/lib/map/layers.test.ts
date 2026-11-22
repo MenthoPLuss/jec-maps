@@ -3,12 +3,15 @@ import { describe, expect, it } from "vitest";
 
 import { published } from "../data/testing";
 import { localStyle } from "./basemap";
-import { accuracyCircle, appLayers, staticMapData } from "./layers";
+import { findJourney } from "../routing/journey";
+import { buildGraph } from "../routing/graph";
+import { routeTarget } from "../state/destination";
+import { accuracyCircle, appLayers, indoorPlan, indoorRoute, staticMapData } from "./layers";
 import { EMPTY } from "./registry";
 
 describe("appLayers", () => {
   it.each(["light", "dark"] as const)("is a valid MapLibre style (%s)", (theme) => {
-    const layers = appLayers({ theme, fonts: ["Arial"] });
+    const layers = appLayers({ theme, fonts: ["Arial"], indoors: theme === "dark", still: theme === "dark" });
     const sources = Object.fromEntries(
       layers.flatMap((layer) => ("source" in layer ? [[layer.source as string, { type: "geojson", data: EMPTY }]] : [])),
     );
@@ -18,7 +21,8 @@ describe("appLayers", () => {
   });
 
   it("has unique layer ids, the same for both themes", () => {
-    const ids = (theme: "light" | "dark") => appLayers({ theme, fonts: ["Arial"] }).map((layer) => layer.id);
+    const ids = (theme: "light" | "dark") =>
+      appLayers({ theme, fonts: ["Arial"], indoors: theme === "dark", still: false }).map((layer) => layer.id);
 
     expect(new Set(ids("light")).size).toBe(ids("light").length);
     expect(ids("dark")).toEqual(ids("light"));
@@ -55,5 +59,41 @@ describe("accuracyCircle", () => {
     const metresPerPixel = (0.5971642834779395 * Math.cos((26.745 * Math.PI) / 180)) / 2;
 
     expect(radius * 2 ** 18).toBeCloseTo(10 / metresPerPixel, 1);
+  });
+});
+
+describe("indoor data", () => {
+  const { core, indoor } = published();
+  const [plans] = indoor;
+
+  it("draws one floor with labels and marks the chosen room", () => {
+    const { rooms, lines, points } = indoorPlan(plans, 1, core.rooms, "demo-a-102", null);
+    const chosen = rooms.features.filter((feature) => feature.properties?.chosen);
+
+    expect(rooms.features).toHaveLength(9); // 7 rooms, stairs and lift
+    expect(chosen.map((feature) => feature.properties?.id)).toEqual(["demo-a-102"]);
+    expect(rooms.features.map((feature) => feature.properties?.label)).toContain("A-102");
+    expect(lines.features).toHaveLength(5);
+    expect(points.features.length).toBeGreaterThan(7);
+  });
+
+  it("is empty for a floor without a plan", () => {
+    const { rooms, lines, points } = indoorPlan(plans, 7, core.rooms, null, null);
+    expect([rooms, lines, points].every((collection) => collection.features.length === 0)).toBe(true);
+  });
+
+  it("separates the floor that is shown from the others, and marks where it changes", () => {
+    const destination = { kind: "room", id: "demo-a-102" } as const;
+    const result = findJourney(
+      { dataset: core, graph: buildGraph(core), obstacles: [], plans: new Map([[plans.buildingId, plans]]) },
+      { origin: { kind: "position", position: [94.2506399, 26.745] }, target: routeTarget(core, destination)!, targetRoomId: destination.id, avoidSteps: false },
+    );
+    if (!result.ok) throw new Error(result.reason);
+    const ground = indoorRoute([result.route.enter], 0, (level) => `Floor ${level}`);
+
+    expect(ground.features.filter((feature) => feature.properties?.kind === "line").map((feature) => feature.properties?.current)).toEqual([true, false]);
+    expect(ground.features.find((feature) => feature.properties?.kind === "change")?.properties).toMatchObject({ label: "↑ Floor 1" });
+    const upstairs = indoorRoute([result.route.enter], 1, (level) => `Floor ${level}`);
+    expect(upstairs.features.find((feature) => feature.properties?.kind === "change")?.properties).toMatchObject({ label: "↓ Floor 0" });
   });
 });

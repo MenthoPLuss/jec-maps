@@ -25,6 +25,10 @@ export interface LayerHost {
 export interface LayerLook {
   theme: ThemeName;
   fonts: string[];
+  /** True while a building is being looked at: everything outside fades. */
+  indoors: boolean;
+  /** True for people who asked for less motion: nothing fades, it just changes. */
+  still: boolean;
 }
 
 export interface RegistryOptions<SourceId extends string> {
@@ -73,10 +77,12 @@ export class LayerRegistry<SourceId extends string> {
     return this.data.get(id) ?? EMPTY;
   }
 
-  /** Recolours the layers without touching their data. */
-  setTheme(theme: ThemeName): void {
-    if (!this.look || this.look.theme === theme) return;
-    this.look = { ...this.look, theme };
+  /** Repaints the layers without touching their data. */
+  setLook(change: Partial<LayerLook>): void {
+    if (!this.look) return;
+    const same = (Object.keys(change) as (keyof LayerLook)[]).every((key) => this.look?.[key] === change[key]);
+    if (same) return;
+    this.look = { ...this.look, ...change };
     if (!this.host) return;
 
     for (const layer of this.options.layers(this.look)) {

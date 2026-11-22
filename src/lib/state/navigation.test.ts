@@ -176,10 +176,10 @@ describe("arriving", () => {
     expect(sim.nav).toEqual({ status: "arrived", how: "manual" });
   });
 
-  it("another room is no arrival", () => {
+  it("another room is no arrival: the route starts again from there", () => {
     const sim = new Simulator().unlock(at(-80, -10)).send(set({ kind: "room", id: "demo-a-101" })).solve();
     sim.send({ type: "room/confirmed", roomId: "demo-a-102" });
-    expect(sim.nav.status).toBe("active");
+    expect(sim.nav.status).toBe("computing");
   });
 });
 
@@ -329,5 +329,51 @@ describe("isDestination", () => {
     ["place", false],
   ])("%j: %s", (value, expected) => {
     expect(isDestination(value)).toBe(expected);
+  });
+});
+
+describe("inside a building", () => {
+  const inside = () => {
+    const sim = new Simulator().unlock(at(-80, -10)).send(set({ kind: "room", id: "demo-a-101" })).solve();
+    return sim.send({ type: "building/confirmed", buildingId: "demo-block-a" }).solve();
+  };
+
+  it("GPS moves no progress and starts no new route", () => {
+    const sim = inside();
+    const before = sim.nav;
+    sim.fixes(6, at(-60, 45)).fixes(6, at(-100, 30), { accuracyM: 60 });
+    expect(sim.nav).toBe(before);
+  });
+
+  it("a route can be asked for without any GPS", () => {
+    const sim = inside().wait(120_000);
+    expect(sim.state.quality.level).toBe("stale");
+    sim.send(set({ kind: "room", id: "demo-a-102" }));
+    expect(sim.nav.status).toBe("computing");
+  });
+
+  it("a room that has to be confirmed again is not used to start from", () => {
+    const sim = inside().send({ type: "room/confirmed", roomId: "demo-a-001" });
+    sim.send({ type: "provider/event", event: { type: "paused" } });
+    sim.now += 200_000;
+    sim.send({ type: "provider/event", event: { type: "resumed" } });
+    sim.send(set({ kind: "room", id: "demo-a-102" }));
+    expect(sim.nav).toEqual({ status: "waiting", reason: "no-position" });
+
+    sim.send({ type: "position/reconfirmed" });
+    expect(sim.nav.status).toBe("computing");
+  });
+
+  it("saying 'I'm outside' starts again from the GPS", () => {
+    const sim = inside().fixes(1, at(-80, 10)).send({ type: "outside/confirmed" });
+    expect(sim.nav.status).toBe("computing");
+    expect(sim.solve().nav.status).toBe("active");
+  });
+
+  it("more floor plans lead to a better route, and never restart a cancelled one", () => {
+    const sim = new Simulator().unlock(at(-80, -10)).send(set({ kind: "room", id: "demo-a-101" })).solve();
+    expect(sim.send({ type: "route/refresh" }).nav.status).toBe("computing");
+    sim.solve().send({ type: "route/cancelled" }).send({ type: "route/refresh" });
+    expect(sim.nav.status).toBe("cancelled");
   });
 });

@@ -5,12 +5,14 @@
  * the screen subscribe to what they need.
  */
 import type { AreaGeometry } from "./geo/area";
-import type { PublishedDataset } from "./data/published";
+import { loadIndoorPlans } from "./data/client";
+import type { IndoorPlans, PublishedDataset } from "./data/published";
 import type { LocationProvider } from "./location/types";
 import { buildGraph, type Graph } from "./routing/graph";
-import { findRoute } from "./routing/route";
+import { findJourney, type JourneyOrigin } from "./routing/journey";
 import { capabilitiesOf } from "./state/capabilities";
 import { isDestination, routeTarget } from "./state/destination";
+import { knowsPlace } from "./state/navigation";
 import { initialState, reduce } from "./state/reducer";
 import type { AppEvent, AppState, Destination, World } from "./state/types";
 import { isBoolean, storedValue, type KeyValueStore, type StoredValue } from "./storage";
@@ -24,6 +26,7 @@ export interface ControllerOptions {
   /** Runs something a little later. Tests run it at once. */
   defer?: (task: () => void) => void;
   store?: () => KeyValueStore | null;
+  loadPlans?: (buildingId: string) => Promise<IndoorPlans | null>;
 }
 
 export class CampusController {
@@ -42,6 +45,9 @@ export class CampusController {
   private timer: ReturnType<typeof setInterval> | null = null;
   private unsubscribe: (() => void) | null = null;
   private solving = 0;
+  private readonly loadPlans: (buildingId: string) => Promise<IndoorPlans | null>;
+  private readonly plans = new Map<string, IndoorPlans>();
+  private readonly loading = new Set<string>();
 
   constructor(options: ControllerOptions) {
     this.dataset = options.dataset;
@@ -54,6 +60,7 @@ export class CampusController {
     };
     this.graph = buildGraph(options.dataset);
     this.obstacles = options.dataset.buildings.map((building) => building.geometry);
+    this.loadPlans = options.loadPlans ?? ((buildingId) => loadIndoorPlans(options.dataset, buildingId));
     this.savedDestination = storedValue("destination", 1, isDestination, options.store);
     this.savedAvoidStairs = storedValue("avoid-stairs", 1, isBoolean, options.store);
   }
@@ -77,6 +84,42 @@ export class CampusController {
     for (const listener of [...this.listeners]) listener();
     this.solveIfAsked();
   };
+
+  // --- Floor plans ---
+
+  getPlans = (buildingId: string | null): IndoorPlans | null => (buildingId && this.plans.get(buildingId)) || null;
+
+  /** Downloads the floor plans of a building, once. Trying again after a failure is fine. */
+  ensurePlans = async (buildingId: string): Promise<void> => {
+    if (this.plans.has(buildingId) || this.loading.has(buildingId)) return;
+    if (!Object.hasOwn(this.dataset.indoorLevels, buildingId)) return;
+
+    this.loading.add(buildingId);
+    try {
+      const plans = await this.loadPlans(buildingId);
+      if (!plans) return;
+      this.plans.set(buildingId, plans);
+      for (const listener of [...this.listeners]) listener();
+      // A route that ended at the door can go on inside now.
+      const { confirmed, destination } = this.state;
+      const room = destination?.kind === "room" && this.dataset.rooms.find(({ id }) => id === destination.id);
+      if ((room && room.buildingId === buildingId) || confirmed?.buildingId === buildingId) {
+        this.dispatch({ type: "route/refresh" });
+      }
+    } catch {
+      // Without plans there is still the list of rooms and the way to the door.
+    } finally {
+      this.loading.delete(buildingId);
+    }
+  };
+
+  /**
+   * All floor plans, one after the other. They are downloaded for everyone in the same
+   * way, so that no request says which building somebody went into.
+   */
+  async preloadPlans(): Promise<void> {
+    for (const buildingId of Object.keys(this.dataset.indoorLevels)) await this.ensurePlans(buildingId);
+  }
 
   // --- Life ---
 
@@ -121,15 +164,30 @@ export class CampusController {
     const { requestId } = navigation;
     this.solving = requestId;
     this.defer(() => {
-      const { destination, fix, avoidStairs, navigation: current } = this.state;
+      const { destination, avoidStairs, navigation: current } = this.state;
       // Something else was asked meanwhile.
-      if (current.status !== "computing" || current.requestId !== requestId || !destination || !fix) return;
+      if (current.status !== "computing" || current.requestId !== requestId || !destination) return;
       const target = routeTarget(this.dataset, destination);
-      if (!target) return this.dispatch({ type: "destination/cleared" });
+      const origin = this.origin();
+      if (!target || !origin) return this.dispatch({ type: "destination/cleared" });
 
-      const result = findRoute(this.graph, this.obstacles, { origin: fix.position, target, avoidSteps: avoidStairs });
+      const result = findJourney(
+        { dataset: this.dataset, graph: this.graph, obstacles: this.obstacles, plans: this.plans },
+        { origin, target, targetRoomId: destination.kind === "room" ? destination.id : null, avoidSteps: avoidStairs },
+      );
       this.dispatch({ type: "route/computed", requestId, result });
     });
+  }
+
+  /** Where a route starts: what the user said, or else where the GPS says they are. */
+  private origin(): JourneyOrigin | null {
+    const { confirmed, fix } = this.state;
+    if (confirmed && knowsPlace(this.state)) {
+      return confirmed.roomId
+        ? { kind: "room", roomId: confirmed.roomId }
+        : { kind: "building", buildingId: confirmed.buildingId };
+    }
+    return fix ? { kind: "position", position: fix.position } : null;
   }
 
   private remember(before: AppState, after: AppState): void {

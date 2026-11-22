@@ -1,5 +1,6 @@
 "use client";
 
+import RoomFacts from "@/components/indoor/RoomFacts";
 import Button from "@/components/ui/Button";
 import { useAppState, useController } from "@/hooks/useController";
 import { formatDistance } from "@/lib/format";
@@ -147,8 +148,13 @@ function SavedDestination() {
     <div className="rounded-xl bg-surface-2 p-3" data-testid="saved-destination">
       <p>
         Your destination: <strong className="text-ink">{info.name}</strong>
-        {info.detail && <span className="block">{info.detail}</span>}
+        {info.detail && !info.room && <span className="block">{info.detail}</span>}
       </p>
+      {info.room && (
+        <div className="mt-2" data-testid="shared-room">
+          <RoomFacts dataset={dataset} room={info.room} />
+        </div>
+      )}
       <Button look="quiet" onClick={() => dispatch({ type: "destination/cleared" })}>
         Remove it
       </Button>

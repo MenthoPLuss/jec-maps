@@ -92,13 +92,13 @@ test("avoid stairs changes the route and promises nothing", async ({ page }) => 
   await gps.unlock();
   await gps.preset("Between two buildings");
   await gps.search("parking", /Demo Parking/);
-  await expect(page.getByTestId("navigation")).toContainText("This route has stairs");
+  await expect(page.getByTestId("navigation")).toContainText("This route has stairs outside");
   const before = parseInt(await page.getByTestId("distance").innerText(), 10);
 
   await page.getByRole("button", { name: "None of them" }).click();
   await page.getByRole("button", { name: "Show more" }).click();
   await page.getByRole("checkbox", { name: /Avoid stairs/ }).check();
-  await expect(page.getByTestId("navigation")).not.toContainText("This route has stairs");
+  await expect(page.getByTestId("navigation")).not.toContainText("This route has stairs outside");
   await expect.poll(async () => parseInt(await page.getByTestId("distance").innerText(), 10)).toBeGreaterThan(before);
   await expect(page.getByText("Not a promise that a wheelchair gets through")).toBeVisible();
 });

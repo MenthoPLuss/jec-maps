@@ -1,7 +1,7 @@
 import type { AddLayerObject } from "maplibre-gl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { EMPTY, LayerRegistry, type FeatureCollection, type LayerHost } from "./registry";
+import { EMPTY, LayerRegistry, type FeatureCollection, type LayerHost, type LayerLook } from "./registry";
 
 /** A stand-in for the map that remembers what it was told. */
 class FakeMap implements LayerHost {
@@ -57,8 +57,7 @@ function createRegistry(onError?: (error: unknown) => void) {
   });
 }
 
-const light = { theme: "light", fonts: ["Arial"] } as const;
-const look = { ...light, fonts: [...light.fonts] };
+const look: LayerLook = { theme: "light", fonts: ["Arial"], indoors: false, still: false };
 
 let map: FakeMap;
 
@@ -130,7 +129,7 @@ describe("LayerRegistry", () => {
   it("recolours without adding layers or touching data", () => {
     const registry = createRegistry();
     registry.attach(map, look);
-    registry.setTheme("dark");
+    registry.setLook({ theme: "dark" });
 
     expect(map.paint).toEqual([
       ["route-line", "line-color", "#fff"],
@@ -143,7 +142,7 @@ describe("LayerRegistry", () => {
   it("ignores a theme change that changes nothing", () => {
     const registry = createRegistry();
     registry.attach(map, look);
-    registry.setTheme("light");
+    registry.setLook({ theme: "light" });
 
     expect(map.paint).toEqual([]);
   });

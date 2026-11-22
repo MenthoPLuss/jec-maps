@@ -34,7 +34,18 @@ export default function SelectionCard({ selection, canGo, onClose }: SelectionCa
             Go here
           </Button>
         )}
-        <Button look="secondary" onClick={onClose}>
+        {info.buildingId && (
+          <Button
+            look="secondary"
+            onClick={() => {
+              dispatch({ type: "view/opened", buildingId: info.buildingId as string });
+              onClose();
+            }}
+          >
+            Look inside
+          </Button>
+        )}
+        <Button look="quiet" onClick={onClose}>
           Close
         </Button>
       </div>

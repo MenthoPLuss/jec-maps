@@ -77,8 +77,8 @@ export type Navigation =
       status: "no-route";
       reason: NoRouteReason;
       straightLineM: number;
-      /** Where it was tried from: it is tried again after moving on. */
-      from: LngLat;
+      /** Where it was tried from: it is tried again after moving on. Null indoors. */
+      from: LngLat | null;
       near: boolean;
       arrival: Evidence | null;
     }
@@ -141,6 +141,8 @@ export type AppEvent =
   | { type: "destination/set"; destination: Destination }
   | { type: "destination/cleared" }
   | { type: "route/computed"; requestId: number; result: RouteResult }
+  /** More is known now, such as a floor plan. */
+  | { type: "route/refresh" }
   | { type: "route/cancelled" }
   | { type: "route/restarted" }
   | { type: "arrival/confirmed" }

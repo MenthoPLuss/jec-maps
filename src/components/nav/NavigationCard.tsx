@@ -1,10 +1,12 @@
 "use client";
 
+import StepList from "@/components/indoor/StepList";
 import Button from "@/components/ui/Button";
 import { useAppState, useController } from "@/hooks/useController";
 import { formatBearing, formatDistance, formatDuration } from "@/lib/format";
 import { bearingDeg } from "@/lib/geo/distance";
 import { destinationInfo, type DestinationInfo } from "@/lib/state/destination";
+import { knowsPlace } from "@/lib/state/navigation";
 import { isPaused, walkingSeconds } from "@/lib/state/speed";
 import type { AppState, Navigation, WaitingReason } from "@/lib/state/types";
 import type { NoRouteReason } from "@/lib/routing/route";
@@ -30,6 +32,7 @@ export default function NavigationCard({ expanded }: { expanded: boolean }) {
   const destination = useAppState((state) => state.destination);
   const navigation = useAppState((state) => state.navigation);
   const avoidStairs = useAppState((state) => state.avoidStairs);
+  const isInside = useAppState(knowsPlace);
   const info = destination && destinationInfo(dataset, destination);
   if (!info) return null;
 
@@ -44,6 +47,9 @@ export default function NavigationCard({ expanded }: { expanded: boolean }) {
       </header>
 
       <Status info={info} navigation={navigation} />
+      {navigation.status === "active" && (expanded || navigation.proximity === "entrance" || isInside) && (
+        <StepList route={navigation.route} room={info.room} />
+      )}
 
       {(expanded || canRestart) && (
         <div className="flex flex-wrap gap-2">
@@ -78,6 +84,10 @@ export default function NavigationCard({ expanded }: { expanded: boolean }) {
 
 function Status({ info, navigation }: { info: DestinationInfo; navigation: Navigation }) {
   const { dispatch } = useController();
+  const isInside = useAppState(knowsPlace);
+  const showInside = (room: DestinationInfo["room"], level: number | undefined) => {
+    if (room) dispatch({ type: "view/opened", buildingId: room.buildingId, level });
+  };
 
   switch (navigation.status) {
     case "idle":
@@ -116,17 +126,38 @@ function Status({ info, navigation }: { info: DestinationInfo; navigation: Navig
     case "active":
       return (
         <div className="space-y-2">
-          <Remaining info={info} />
-          {navigation.proximity === "entrance" ? (
+          {isInside ? (
+            <div className="space-y-2">
+              <p data-testid="inside" className="text-sm">
+                Inside: {formatDuration(insideSeconds(navigation))}. An estimate. Move the steps on yourself.
+              </p>
+              {info.room && (
+                <Button look="secondary" onClick={() => dispatch({ type: "room/confirmed", roomId: info.room?.id ?? "" })}>
+                  I&apos;ve reached the room
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Remaining info={info} />
+          )}
+          {navigation.proximity === "entrance" && !isInside ? (
             <div data-testid="at-entrance" className="space-y-2 rounded-xl bg-surface-2 p-3 text-sm">
               <p>
                 <strong>You&apos;re at the entrance.</strong> {info.name} is on: {info.detail}.
                 {info.room?.near && ` Hint: ${info.room.near}.`}
               </p>
-              <Button onClick={() => dispatch({ type: "arrival/confirmed" })}>I&apos;ve reached the room</Button>
+              <div className="flex flex-wrap gap-2">
+                {info.room && (
+                  <Button look="secondary" onClick={() => showInside(info.room, navigation.route.enter?.pieces[0]?.level)}>
+                    Show the way inside
+                  </Button>
+                )}
+                <Button onClick={() => dispatch({ type: "arrival/confirmed" })}>I&apos;ve reached the room</Button>
+              </div>
             </div>
           ) : (
-            navigation.proximity === "near" && <Near />
+            // Near a building is not near a room in it.
+            navigation.proximity === "near" && !info.room && !isInside && <Near />
           )}
           <Notes navigation={navigation} />
         </div>
@@ -137,7 +168,12 @@ function Status({ info, navigation }: { info: DestinationInfo; navigation: Navig
 /** The big numbers. The text only changes when the rounded number does. */
 function Remaining({ info }: { info: DestinationInfo }) {
   const distance = useAppState((state) => formatDistance(remainingM(state)));
-  const duration = useAppState((state) => formatDuration(walkingSeconds(remainingM(state), state.speed)));
+  const duration = useAppState((state) =>
+    formatDuration(
+      walkingSeconds(remainingM(state), state.speed) +
+        (state.navigation.status === "active" ? insideSeconds(state.navigation) : 0),
+    ),
+  );
   const paused = useAppState((state) => state.fix !== null && isPaused(state.speed, state.fix.timestamp));
   const stale = useAppState((state) => state.quality.level === "stale");
 
@@ -194,8 +230,11 @@ function Notes({ navigation }: { navigation: Extract<Navigation, { status: "acti
   const notes = [
     route.unverifiedM >= 5 && `${formatDistance(route.unverifiedM)} of it (dashed) is only a direction: nobody has checked that you can walk there.`,
     route.accessUnknown && "Nobody has checked whether this door is open to everyone.",
-    route.legs.some((leg) => leg.steps) && "This route has stairs.",
-  ].filter((note) => note !== false);
+    route.legs.some((leg) => leg.steps) && "This route has stairs outside.",
+    route.enter?.pieces.some((piece) => piece.kind === "stairs") && "The way inside has stairs.",
+    route.indoorNote === "no-plan" && "The way inside is not drawn yet: the route ends at the entrance.",
+    route.indoorNote === "only-steps" && "No step-free way to the room is known: the route ends at the entrance.",
+  ].filter((note) => typeof note === "string");
 
   return (
     <>
@@ -210,6 +249,10 @@ function Notes({ navigation }: { navigation: Extract<Navigation, { status: "acti
 
 function remainingM({ navigation }: AppState): number {
   return navigation.status === "active" ? navigation.progress.remainingM : 0;
+}
+
+function insideSeconds({ route }: Extract<Navigation, { status: "active" }>): number {
+  return (route.exit?.seconds ?? 0) + (route.enter?.seconds ?? 0);
 }
 
 function targetOf({ navigation }: AppState, info: DestinationInfo): [number, number] {

@@ -35,7 +35,27 @@ export interface RouteLeg {
   lengthM: number;
 }
 
+/** Part of the way inside a building. */
+export type IndoorPiece =
+  | { kind: "walk"; level: number; coordinates: LngLat[]; lengthM: number; nodes: string[] }
+  | { kind: "stairs" | "lift"; level: number; toLevel: number; name: string; position: LngLat; seconds: number };
+
+export interface IndoorPath {
+  buildingId: string;
+  pieces: IndoorPiece[];
+  lengthM: number;
+  seconds: number;
+}
+
+/**
+ * Why a route stops at the door of the building:
+ * - `no-plan`: nobody has drawn the way inside
+ * - `only-steps`: the only known way inside has stairs
+ */
+export type IndoorNote = "no-plan" | "only-steps";
+
 export interface Route {
+  /** The way outside. Empty when it is all inside one building. */
   legs: RouteLeg[];
   /** All legs as one line. */
   line: LngLat[];
@@ -45,6 +65,11 @@ export interface Route {
   end: LngLat;
   entranceId: string | null;
   accessUnknown: boolean;
+  /** From a room to the door, before the way outside. */
+  exit: IndoorPath | null;
+  /** From the door (or another room) to the room. */
+  enter: IndoorPath | null;
+  indoorNote: IndoorNote | null;
 }
 
 /**
@@ -156,12 +181,12 @@ function searchFrom(
 
   const edges = findPath(ORIGIN, TARGET, edgesFrom, remaining);
   if (!edges) return fail("not-connected");
-  return { ok: true, route: describe(edges, target) };
+  return { ok: true, route: describeOutdoor(edges, target) };
 }
 
 // --- Temporary edges ---------------------------------------------------------
 
-function gapEdge(from: string, to: string, a: LngLat, b: LngLat): Edge {
+export function gapEdge(from: string, to: string, a: LngLat, b: LngLat): Edge {
   const lengthM = distanceM(a, b);
   return {
     from,
@@ -176,13 +201,13 @@ function gapEdge(from: string, to: string, a: LngLat, b: LngLat): Edge {
 }
 
 /** From a spot on a path to its two ends. */
-function leavePath(extra: Map<string, Edge[]>, { path, alongM }: Snap, node: string): void {
+export function leavePath(extra: Map<string, Edge[]>, { path, alongM }: Snap, node: string): void {
   if (path.forward) addEdge(extra, pathEdge(path, node, path.to, slicePolyline(path.coordinates, alongM, path.lengthM)));
   if (path.backward) addEdge(extra, pathEdge(path, node, path.from, slicePolyline(path.coordinates, 0, alongM).reverse()));
 }
 
 /** From the two ends of a path to a spot on it. */
-function joinPath(extra: Map<string, Edge[]>, { path, alongM }: Snap, node: string): void {
+export function joinPath(extra: Map<string, Edge[]>, { path, alongM }: Snap, node: string): void {
   if (path.forward) addEdge(extra, pathEdge(path, path.from, node, slicePolyline(path.coordinates, 0, alongM)));
   if (path.backward) {
     addEdge(extra, pathEdge(path, path.to, node, slicePolyline(path.coordinates, alongM, path.lengthM).reverse()));
@@ -190,7 +215,7 @@ function joinPath(extra: Map<string, Edge[]>, { path, alongM }: Snap, node: stri
 }
 
 /** Both ends on one path: straight along it, if that direction is allowed. */
-function alongSamePath(extra: Map<string, Edge[]>, start: Snap, end: Snap, from: string, to: string): void {
+export function alongSamePath(extra: Map<string, Edge[]>, start: Snap, end: Snap, from: string, to: string): void {
   const { path } = start;
   if (end.alongM >= start.alongM && path.forward) {
     addEdge(extra, pathEdge(path, from, to, slicePolyline(path.coordinates, start.alongM, end.alongM)));
@@ -201,7 +226,7 @@ function alongSamePath(extra: Map<string, Edge[]>, start: Snap, end: Snap, from:
 
 // --- The result --------------------------------------------------------------
 
-function describe(edges: Edge[], target: RouteTarget): Route {
+export function describeOutdoor(edges: Edge[], target: RouteTarget): Route {
   const legs: RouteLeg[] = [];
   for (const edge of edges) {
     if (edge.lengthM < 0.01) continue;
@@ -215,9 +240,9 @@ function describe(edges: Edge[], target: RouteTarget): Route {
   }
 
   const line = legs.reduce<LngLat[]>((all, leg) => joinLines(all, leg.coordinates), []);
-  const lastEdge = edges[edges.length - 1];
+  const lastEdge = edges.at(-1);
   const entrance =
-    target.kind === "entrances" ? target.options.find((option) => option.nodeId === lastEdge.from) : undefined;
+    target.kind === "entrances" ? target.options.find((option) => option.nodeId === lastEdge?.from) : undefined;
 
   return {
     legs,
@@ -227,6 +252,9 @@ function describe(edges: Edge[], target: RouteTarget): Route {
     end: entrance?.position ?? target.position,
     entranceId: entrance?.entranceId ?? null,
     accessUnknown: entrance?.accessUnknown ?? false,
+    exit: null,
+    enter: null,
+    indoorNote: null,
   };
 }
 

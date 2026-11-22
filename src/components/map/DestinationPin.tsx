@@ -8,14 +8,17 @@ import { destinationInfo } from "@/lib/state/destination";
 
 import type { MapHandle } from "./MapSurface";
 
-/** The one destination. A dropped pin can be dragged, everything else stays put. */
-export default function DestinationPin({ handle }: { handle: MapHandle }) {
+/**
+ * The one destination. A dropped pin can be dragged, everything else stays put. While
+ * a building is being looked at there is none: it would point at the middle of it.
+ */
+export default function DestinationPin({ handle, indoors }: { handle: MapHandle; indoors: boolean }) {
   const controller = useController();
   const destination = useAppState((state) => state.destination);
 
   useEffect(() => {
     const info = destination && destinationInfo(controller.dataset, destination);
-    if (!destination || !info) return;
+    if (!destination || !info || indoors) return;
 
     const draggable = destination.kind === "pin";
     const marker = new Marker({ color: "#b91c1c", draggable }).setLngLat(info.position).addTo(handle.map);
@@ -32,7 +35,7 @@ export default function DestinationPin({ handle }: { handle: MapHandle }) {
       drop.unsubscribe();
       marker.remove();
     };
-  }, [controller, destination, handle]);
+  }, [controller, destination, handle, indoors]);
 
   return null;
 }

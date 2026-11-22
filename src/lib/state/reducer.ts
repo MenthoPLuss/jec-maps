@@ -8,7 +8,7 @@ import type { Fix, ProviderEvent } from "../location/types";
 import { dismiss, suggestWhenLost, updateBuildings } from "./building";
 import { buildingOf, destinationInfo } from "./destination";
 import { isUsable, judgeFix, qualityOf } from "./fixes";
-import { begin, followFix, takeResult } from "./navigation";
+import { again, begin, followFix, takeResult } from "./navigation";
 import { POLICY } from "./policy";
 import { updatePresence } from "./presence";
 import { initialSpeed, updateSpeed } from "./speed";
@@ -61,7 +61,8 @@ export function reduce(state: AppState, event: AppEvent, now: number, world: Wor
 
     case "level/confirmed": {
       if (!state.confirmed || !hasLevel(world, state.confirmed.buildingId, event.level)) return state;
-      return { ...state, confirmed: { ...state.confirmed, level: event.level, roomId: null, needsReconfirm: false } };
+      const confirmed = { ...state.confirmed, level: event.level, roomId: null, needsReconfirm: false };
+      return again({ ...state, confirmed }, world);
     }
 
     case "room/confirmed": {
@@ -76,16 +77,16 @@ export function reduce(state: AppState, event: AppEvent, now: number, world: Wor
       };
       // Being in the room you were looking for is an arrival.
       const there = state.destination?.kind === "room" && state.destination.id === room.id;
-      return there ? { ...next, navigation: { status: "arrived", how: "manual" } } : next;
+      return there ? { ...next, navigation: { status: "arrived", how: "manual" } } : again(next, world);
     }
 
     case "position/reconfirmed":
-      return state.confirmed ? { ...state, confirmed: { ...state.confirmed, needsReconfirm: false } } : state;
+      return state.confirmed ? again({ ...state, confirmed: { ...state.confirmed, needsReconfirm: false } }, world) : state;
 
     case "outside/confirmed": {
       if (!state.confirmed) return { ...state, ...dismiss(state, now) };
       const until = now + POLICY.building.dismissForMs;
-      return {
+      const outside: AppState = {
         ...state,
         confirmed: null,
         view: null,
@@ -94,6 +95,7 @@ export function reduce(state: AppState, event: AppEvent, now: number, world: Wor
         // Don't ask again right away.
         dismissed: { ...state.dismissed, [state.confirmed.buildingId]: until },
       };
+      return again(outside, world);
     }
 
     case "view/opened": {
@@ -122,6 +124,9 @@ export function reduce(state: AppState, event: AppEvent, now: number, world: Wor
     case "route/computed":
       return takeResult(state, event.requestId, event.result, now);
 
+    case "route/refresh":
+      return again(state, world);
+
     case "route/cancelled":
       return state.destination ? { ...state, navigation: { status: "cancelled" } } : state;
 
@@ -131,11 +136,8 @@ export function reduce(state: AppState, event: AppEvent, now: number, world: Wor
     case "arrival/confirmed":
       return state.destination ? { ...state, navigation: { status: "arrived", how: "manual" } } : state;
 
-    case "settings/avoidStairs": {
-      const next = { ...state, avoidStairs: event.value };
-      const { status } = state.navigation;
-      return status === "active" || status === "no-route" || status === "computing" ? begin(next, world) : next;
-    }
+    case "settings/avoidStairs":
+      return again({ ...state, avoidStairs: event.value }, world);
   }
 }
 
@@ -199,7 +201,8 @@ function takeFix(state: AppState, fix: Fix, now: number, world: World): AppState
 
   if (next.presence.status === "inside") {
     next = { ...next, ...updateBuildings(next, fix, now, world.dataset) };
-    if (state.confirmed && !next.confirmed) next = { ...next, view: null };
+    // Clearly outside again: the route goes on from there.
+    if (state.confirmed && !next.confirmed) next = again({ ...next, view: null }, world);
   } else if (state.presence.status === "inside" && next.presence.status === "outside") {
     // Really off campus: whatever was said about a room is no longer true.
     next = { ...next, confirmed: null, suggestion: null, nearby: null, view: null };
@@ -232,7 +235,7 @@ function confirmBuilding(state: AppState, buildingId: string, world: World): App
   const building = buildingOf(world.dataset, buildingId);
   if (!building) return state;
   const { levels, defaultLevel } = building.properties;
-  return {
+  const inside: AppState = {
     ...state,
     suggestion: null,
     nearby: null,
@@ -240,6 +243,7 @@ function confirmBuilding(state: AppState, buildingId: string, world: World): App
     confirmed: { buildingId, level: null, roomId: null, needsReconfirm: false, away: null },
     view: { buildingId, level: defaultLevel ?? levels[0].ordinal },
   };
+  return again(inside, world);
 }
 
 function hasLevel(world: World, buildingId: string, level: number): boolean {

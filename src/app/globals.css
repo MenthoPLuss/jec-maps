@@ -78,7 +78,7 @@ body {
 
 /* MapLibre's own controls: big enough for a thumb, clear of notches and the sheet. */
 .app-frame .maplibregl-ctrl-top-right {
-  top: calc(var(--safe-top) + 4.5rem);
+  top: calc(var(--safe-top) + var(--top-height, 4.5rem));
   right: var(--safe-right);
 }
 

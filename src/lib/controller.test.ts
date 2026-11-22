@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CampusController } from "./controller";
 import { published } from "./data/testing";
+import type { IndoorPlans } from "./data/published";
 import type { LocationProvider, ProviderEvent } from "./location/types";
 import type { KeyValueStore } from "./storage";
 import { SPOT, at } from "./state/testing";
@@ -27,6 +28,7 @@ let items: Map<string, string>;
 let store: KeyValueStore;
 let time: number;
 let controller: CampusController;
+let loadPlans: ReturnType<typeof vi.fn<(buildingId: string) => Promise<IndoorPlans | null>>>;
 const tasks: (() => void)[] = [];
 
 const create = () =>
@@ -36,6 +38,7 @@ const create = () =>
     now: () => time,
     defer: (task) => tasks.push(task),
     store: () => store,
+    loadPlans,
   });
 
 const runTasks = () => {
@@ -63,6 +66,7 @@ beforeEach(() => {
     removeItem: (key) => void items.delete(key),
   };
   time = 1_000_000;
+  loadPlans = vi.fn(async (buildingId) => published().indoor.find((plans) => plans.buildingId === buildingId) ?? null);
   tasks.length = 0;
   controller = create();
   controller.connect();
@@ -205,5 +209,64 @@ describe("CampusController", () => {
     controller.connect();
     expect(provider.listeners.size).toBe(1);
     expect(vi.getTimerCount()).toBe(1);
+  });
+});
+
+describe("floor plans", () => {
+  const route = () => {
+    const { navigation } = controller.getState();
+    return navigation.status === "active" ? navigation.route : null;
+  };
+  const goTo = (id: string) => {
+    controller.dispatch({ type: "destination/set", destination: { kind: "room", id } });
+    runTasks();
+  };
+
+  it("are downloaded once, and only for buildings that have them", async () => {
+    await Promise.all([controller.ensurePlans("demo-block-a"), controller.ensurePlans("demo-block-a")]);
+    await controller.ensurePlans("demo-block-a");
+    await controller.ensurePlans("demo-library");
+    await controller.ensurePlans("../secret");
+
+    expect(loadPlans.mock.calls).toEqual([["demo-block-a"]]);
+    expect(controller.getPlans("demo-block-a")?.levels).toHaveLength(2);
+    expect(controller.getPlans("demo-library")).toBeNull();
+  });
+
+  it("are all downloaded in the same order for everyone", async () => {
+    await controller.preloadPlans();
+    expect(loadPlans.mock.calls).toEqual([["demo-block-a"]]);
+  });
+
+  it("improve a route that ended at the door", async () => {
+    unlock();
+    goTo("demo-a-102");
+    expect(route()).toMatchObject({ enter: null, indoorNote: "no-plan" });
+
+    await controller.ensurePlans("demo-block-a");
+    runTasks();
+    expect(route()?.enter?.pieces.map((piece) => piece.kind)).toEqual(["walk", "stairs", "walk"]);
+  });
+
+  it("that can't be downloaded leave the route to the door, and can be tried again", async () => {
+    loadPlans.mockRejectedValueOnce(new Error("offline"));
+    unlock();
+    goTo("demo-a-102");
+    await controller.ensurePlans("demo-block-a");
+    expect(route()?.enter).toBeNull();
+
+    await controller.ensurePlans("demo-block-a");
+    runTasks();
+    expect(route()?.enter).not.toBeNull();
+  });
+
+  it("let a route start in the room that the user confirmed", async () => {
+    await controller.ensurePlans("demo-block-a");
+    unlock();
+    controller.dispatch({ type: "room/confirmed", roomId: "demo-a-001" });
+    goTo("demo-a-105");
+
+    expect(route()).toMatchObject({ line: [], exit: null });
+    expect(route()?.enter?.pieces.map((piece) => piece.kind)).toEqual(["walk", "stairs", "walk"]);
   });
 });

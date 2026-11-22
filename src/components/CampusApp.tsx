@@ -64,7 +64,12 @@ function Connected({ dataset, mock, linked }: ConnectedProps) {
     controller.connect();
     controller.restore();
     if (linked) controller.dispatch({ type: "destination/set", destination: linked });
-    return () => controller.disconnect();
+    // When the browser has nothing better to do. The same files for everyone.
+    const preload = setTimeout(() => void controller.preloadPlans(), 3_000);
+    return () => {
+      clearTimeout(preload);
+      controller.disconnect();
+    };
   }, [controller, linked]);
 
   if (!dataset.boundary && dataset.buildings.length === 0) {
@@ -78,7 +83,7 @@ function Connected({ dataset, mock, linked }: ConnectedProps) {
   }
   return (
     <ControllerContext value={controller}>
-      <Campus gps={gps} />
+      <Campus gps={gps} linked={linked} />
     </ControllerContext>
   );
 }
