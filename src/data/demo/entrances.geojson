@@ -1,0 +1,10 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","properties":{"id":"demo-block-a-main","buildingId":"demo-block-a","level":0,"name":"Main entrance","access":"public","outdoorNodeId":"demo-n-block-a-main","indoorNodeId":"demo-a0-door","accessibility":{"stepFree":"yes","reviewStatus":"unreviewed","note":"Demo value"},"source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2498342,26.7460082]}},
+    {"type":"Feature","properties":{"id":"demo-block-a-rear","buildingId":"demo-block-a","level":0,"name":"Rear entrance (staff only)","access":"restricted","outdoorNodeId":"demo-n-block-a-rear","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2496328,26.7463679]}},
+    {"type":"Feature","properties":{"id":"demo-block-b-main","buildingId":"demo-block-b","level":0,"name":"Main entrance","access":"public","outdoorNodeId":"demo-n-block-b-main","accessibility":{"stepFree":"no","reviewStatus":"unreviewed","note":"Demo value"},"source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2511434,26.7460082]}},
+    {"type":"Feature","properties":{"id":"demo-block-b-east","buildingId":"demo-block-b","level":0,"name":"East entrance","access":"public","outdoorNodeId":"demo-n-block-b-east","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2514456,26.746188]}},
+    {"type":"Feature","properties":{"id":"demo-library-west","buildingId":"demo-library","level":0,"name":"West entrance","access":"public","outdoorNodeId":"demo-n-library-west","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2516067,26.746188]}}
+  ]
+}

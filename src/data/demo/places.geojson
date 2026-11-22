@@ -1,0 +1,16 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","properties":{"id":"demo-main-gate","name":"Demo Main Gate","aliases":["front gate"],"category":"gate","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2506399,26.7441736]}},
+    {"type":"Feature","properties":{"id":"demo-back-gate","name":"Demo Back Gate","aliases":["rear gate"],"category":"gate","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2504687,26.747483]}},
+    {"type":"Feature","properties":{"id":"demo-canteen","name":"Demo Canteen","aliases":["food","cafe"],"category":"canteen","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2497335,26.744947]}},
+    {"type":"Feature","properties":{"id":"demo-hostel","name":"Demo Hostel","aliases":[],"category":"hostel","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2517678,26.744947]}},
+    {"type":"Feature","properties":{"id":"demo-ground","name":"Demo Ground","aliases":["playground","field"],"category":"ground","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2494717,26.7469255]}},
+    {"type":"Feature","properties":{"id":"demo-parking","name":"Demo Parking","aliases":["bike stand"],"category":"parking","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2516067,26.7468715]}},
+    {"type":"Feature","properties":{"id":"demo-atm","name":"Demo ATM","aliases":["cash machine"],"category":"atm","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2507205,26.7444793]}},
+    {"type":"Feature","properties":{"id":"demo-medical-room","name":"Demo Medical Room","aliases":["first aid","doctor"],"category":"medical","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2505392,26.7447671]}},
+    {"type":"Feature","properties":{"id":"demo-reading-hall","name":"Demo Reading Hall","aliases":["books"],"category":"library","buildingId":"demo-library","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2518584,26.746188]}},
+    {"type":"Feature","properties":{"id":"demo-admin-office","name":"Demo Admin Office","aliases":["principal"],"category":"admin","buildingId":"demo-block-b","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2511434,26.746188]}},
+    {"type":"Feature","properties":{"id":"demo-department","name":"Demo Department of Examples","aliases":["examples"],"category":"department","buildingId":"demo-block-a","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Point","coordinates":[94.2498342,26.746188]}}
+  ]
+}

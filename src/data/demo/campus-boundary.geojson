@@ -1,0 +1,6 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","properties":{"id":"demo-campus","name":"Demo campus","source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Polygon","coordinates":[[[94.2483237,26.7441196],[94.2525533,26.7441196],[94.2530569,26.7452887],[94.2529561,26.7469075],[94.2518484,26.747537],[94.2491293,26.7476269],[94.2482229,26.7466377],[94.2483237,26.7441196]]]}}
+  ]
+}

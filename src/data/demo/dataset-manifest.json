@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "demo-1",
+  "mode": "demo",
+  "title": "Demo campus",
+  "provenance": "Made up by scripts/make-demo-data.ts. Nothing in it is real.",
+  "reviewStatus": "unreviewed",
+  "attribution": [
+    "Demo data: made up, not a real map"
+  ],
+  "files": {
+    "boundary": "campus-boundary.geojson",
+    "buildings": "buildings.geojson",
+    "entrances": "entrances.geojson",
+    "places": "places.geojson",
+    "paths": "campus-paths.geojson",
+    "rooms": "rooms.json",
+    "levels": [
+      {
+        "buildingId": "demo-block-a",
+        "level": 0,
+        "path": "buildings/demo-block-a/level-0.geojson"
+      },
+      {
+        "buildingId": "demo-block-a",
+        "level": 1,
+        "path": "buildings/demo-block-a/level-1.geojson"
+      }
+    ]
+  }
+}

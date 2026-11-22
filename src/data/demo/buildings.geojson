@@ -1,0 +1,8 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","properties":{"id":"demo-block-a","name":"Demo Block A","shortName":"Block A","departments":["Demo Department of Examples"],"levels":[{"ordinal":0,"name":"Ground floor"},{"ordinal":1,"name":"Floor 1"}],"defaultLevel":0,"entranceIds":["demo-block-a-main","demo-block-a-rear"],"source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Polygon","coordinates":[[[94.2494314,26.7460082],[94.2502371,26.7460082],[94.2502371,26.7463679],[94.2494314,26.7463679],[94.2494314,26.7460082]]]}},
+    {"type":"Feature","properties":{"id":"demo-block-b","name":"Demo Block B","shortName":"Block B","departments":["Demo Department of Samples"],"levels":[{"ordinal":0,"name":"Ground floor"},{"ordinal":1,"name":"Floor 1"},{"ordinal":2,"name":"Floor 2"}],"defaultLevel":0,"entranceIds":["demo-block-b-main","demo-block-b-east"],"source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Polygon","coordinates":[[[94.2508413,26.7460082],[94.2514456,26.7460082],[94.2514456,26.7463679],[94.2508413,26.7463679],[94.2508413,26.7460082]]]}},
+    {"type":"Feature","properties":{"id":"demo-library","name":"Demo Library","shortName":"Library","departments":[],"levels":[{"ordinal":-1,"name":"Basement"},{"ordinal":0,"name":"Ground floor"},{"ordinal":1,"name":"Floor 1"}],"defaultLevel":0,"entranceIds":["demo-library-west"],"source":"demo fixture","placeholder":true,"reviewStatus":"unreviewed"},"geometry":{"type":"Polygon","coordinates":[[[94.2516067,26.7460441],[94.2521102,26.7460441],[94.2521102,26.7463319],[94.2516067,26.7463319],[94.2516067,26.7460441]]]}}
+  ]
+}
