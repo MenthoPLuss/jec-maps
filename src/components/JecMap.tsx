@@ -18,11 +18,6 @@ import SearchBar from "@/components/SearchBar";
 
 import PlaceEditor from "@/components/PlaceEditor";
 
-import {
-  createPlayer3DLayer,
-  type Player3DLayer,
-} from "@/components/Player3D";
-
 import type {
   Place,
 } from "@/data/places";
@@ -58,11 +53,6 @@ export default function JecMap() {
 
   const selectedMarkerRef =
     useRef<Marker | null>(
-      null
-    );
-
-  const playerLayerRef =
-    useRef<Player3DLayer | null>(
       null
     );
 
@@ -318,28 +308,6 @@ export default function JecMap() {
       }
 
       // -------------------------
-      // 3D PLAYER
-      // -------------------------
-
-      if (
-        !map.getLayer(
-          "jec-player-3d"
-        )
-      ) {
-        const playerLayer =
-          createPlayer3DLayer(
-            JEC_COORDINATES
-          );
-
-        playerLayerRef.current =
-          playerLayer;
-
-        map.addLayer(
-          playerLayer
-        );
-      }
-
-      // -------------------------
       // BUILDING HOVER
       // -------------------------
 
@@ -477,9 +445,6 @@ export default function JecMap() {
           null;
       }
 
-      playerLayerRef.current =
-        null;
-
       map.remove();
 
       mapRef.current =
@@ -590,12 +555,6 @@ export default function JecMap() {
           clickedCoordinates
         }
       />
-
-      <div
-        className="absolute right-4 top-20 z-20 rounded-xl bg-black/70 px-3 py-2 text-sm font-semibold text-white backdrop-blur"
-      >
-        3D PLAYER MODE
-      </div>
 
       <div
         ref={

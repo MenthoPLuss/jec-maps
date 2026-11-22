@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // We don't use next/image. Turning the optimizer off also removes its public
+  // `/_next/image` endpoint, which has known security advisories.
+  images: { unoptimized: true },
+
+  // Pin the project root so a stray package-lock.json in a parent folder can't
+  // confuse Turbopack. npm scripts always run from the folder of package.json.
+  turbopack: { root: process.cwd() },
 };
 
 export default nextConfig;
