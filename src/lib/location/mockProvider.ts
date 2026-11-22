@@ -136,7 +136,8 @@ export class MockLocationProvider implements LocationProvider {
 
   /** Pretends that the browser reports a problem. */
   fail(problem: ProviderProblem): void {
-    if (problem === "denied") this.stop();
+    // After these the real GPS is silent too.
+    if (problem === "denied" || problem === "insecure" || problem === "unsupported") this.stop();
     this.emit({ type: "problem", problem });
   }
 

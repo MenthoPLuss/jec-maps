@@ -1,4 +1,4 @@
-import { expect, expectMapDrawn, test } from "./support";
+import { expect, expectMapDrawn, test } from "../support";
 
 const map = "canvas.maplibregl-canvas";
 
@@ -14,10 +14,10 @@ test("shows the demo campus without asking any other site", async ({ page }) => 
 
 test("finds a place", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("searchbox", { name: "Search the campus" }).fill("canteen");
-  await page.getByRole("button", { name: /Demo Canteen/ }).click();
+  await page.getByRole("combobox", { name: "Search the campus" }).fill("canteen");
+  await page.getByRole("option", { name: /Demo Canteen/ }).click();
 
-  await expect(page.locator(".maplibregl-marker")).toBeVisible();
+  await expect(page.getByTestId("selection")).toContainText("Demo Canteen");
 });
 
 test.describe("when the campus data can't be downloaded", () => {
@@ -44,7 +44,7 @@ test("says so when the device has no WebGL", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByTestId("no-webgl")).toBeVisible();
-  await expect(page.getByRole("searchbox", { name: "Search the campus" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Search the campus" })).toBeVisible();
 });
 
 test("information pages open and lead back", async ({ page }) => {
@@ -86,13 +86,14 @@ test("comes back after the graphics card was reset", async ({ page }) => {
   await page.goto("/");
   await expectMapDrawn(page);
 
-  await page.evaluate(() => {
+  // Broken until the test says otherwise, so the notice can't be missed.
+  const card = await page.evaluateHandle(() => {
     const canvas = document.querySelector("canvas.maplibregl-canvas") as HTMLCanvasElement;
-    const lose = canvas.getContext("webgl2")?.getExtension("WEBGL_lose_context");
-    lose?.loseContext();
-    setTimeout(() => lose?.restoreContext(), 300);
+    return canvas.getContext("webgl2")?.getExtension("WEBGL_lose_context");
   });
+  await card.evaluate((extension) => extension?.loseContext());
   await expect(page.getByText("The graphics were reset")).toBeVisible();
+  await card.evaluate((extension) => extension?.restoreContext());
   await expect(page.getByText("The graphics were reset")).toBeHidden();
   await expectMapDrawn(page);
 });

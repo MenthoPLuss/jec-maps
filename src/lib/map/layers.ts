@@ -2,10 +2,14 @@
 import type { AddLayerObject } from "maplibre-gl";
 
 import type { PublishedDataset } from "../data/published";
+import type { LngLat } from "../geo/types";
+import type { Route } from "../routing/route";
 import { LayerRegistry, type FeatureCollection, type LayerLook } from "./registry";
 import { MAP_THEMES } from "./theme";
 
-export type AppSource = "campus" | "paths" | "buildings" | "entrances" | "places";
+/** Drawn once, from the dataset. */
+export type StaticSource = "campus" | "paths" | "buildings" | "entrances" | "places";
+export type AppSource = StaticSource | "route" | "user";
 
 const SOURCES: Record<AppSource, object> = {
   campus: {},
@@ -13,6 +17,8 @@ const SOURCES: Record<AppSource, object> = {
   buildings: {},
   entrances: {},
   places: {},
+  route: {},
+  user: {},
 };
 
 export function createAppRegistry(onError?: (error: unknown) => void): LayerRegistry<AppSource> {
@@ -82,6 +88,60 @@ export function appLayers({ theme, fonts }: LayerLook): AddLayerObject[] {
       paint: { "line-color": colour.buildingLine, "line-width": 1.2 },
     },
     {
+      id: "user-accuracy",
+      type: "circle",
+      source: "user",
+      paint: {
+        // The radius in metres: it doubles with every zoom level, like the map itself.
+        "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 0, ["get", "radius"], 24, ["*", ["get", "radius"], 2 ** 24]],
+        "circle-color": colour.user,
+        "circle-opacity": 0.15,
+        "circle-stroke-color": colour.user,
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 0.5,
+        "circle-pitch-alignment": "map",
+      },
+    },
+    {
+      id: "route-casing",
+      type: "line",
+      source: "route",
+      filter: ["==", ["get", "kind"], "verified"],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": colour.routeCasing, "line-width": 9 },
+    },
+    {
+      id: "route-line",
+      type: "line",
+      source: "route",
+      filter: ["==", ["get", "kind"], "verified"],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": colour.route, "line-width": 5 },
+    },
+    {
+      id: "route-steps",
+      type: "line",
+      source: "route",
+      filter: ["==", ["get", "steps"], true],
+      paint: { "line-color": colour.routeCasing, "line-width": 5, "line-dasharray": [0.3, 0.6] },
+    },
+    {
+      // Across ground that nobody has checked: never looks like a route.
+      id: "route-unverified",
+      type: "line",
+      source: "route",
+      filter: ["==", ["get", "kind"], "unverified"],
+      paint: { "line-color": colour.routeUnverified, "line-width": 4, "line-dasharray": [1.5, 1.2] },
+    },
+    {
+      id: "route-straight",
+      type: "line",
+      source: "route",
+      filter: ["==", ["get", "kind"], "straight"],
+      layout: { "line-cap": "round" },
+      paint: { "line-color": colour.routeUnverified, "line-width": 3, "line-dasharray": [0.1, 2] },
+    },
+    {
       id: "entrances-dot",
       type: "circle",
       source: "entrances",
@@ -139,7 +199,7 @@ export function appLayers({ theme, fonts }: LayerLook): AddLayerObject[] {
 }
 
 /** The parts of the dataset that don't change while the app runs. */
-export function staticMapData(dataset: PublishedDataset): Record<AppSource, FeatureCollection> {
+export function staticMapData(dataset: PublishedDataset): Record<StaticSource, FeatureCollection> {
   const usable = new Set(dataset.routablePathIds);
 
   return {
@@ -173,4 +233,35 @@ function feature(source: { geometry: unknown }, properties: Record<string, unkno
 
 function collection(features: GeoJSON.Feature[]): FeatureCollection {
   return { type: "FeatureCollection", features };
+}
+
+const EARTH_CIRCUMFERENCE_M = 2 * Math.PI * 6_378_137;
+
+/** The circle of uncertainty. `radius` is in pixels at zoom 0, as the layer expects. */
+export function accuracyCircle([lng, lat]: LngLat, accuracyM: number): FeatureCollection {
+  const metresPerPixel = (EARTH_CIRCUMFERENCE_M * Math.cos((lat * Math.PI) / 180)) / 512;
+  return collection([
+    {
+      type: "Feature",
+      properties: { radius: accuracyM / metresPerPixel },
+      geometry: { type: "Point", coordinates: [lng, lat] },
+    },
+  ]);
+}
+
+export function routeLines(route: Route): FeatureCollection {
+  return collection(
+    route.legs.map((leg) => ({
+      type: "Feature",
+      properties: { kind: leg.verified ? "verified" : "unverified", steps: leg.verified && leg.steps },
+      geometry: { type: "LineString", coordinates: leg.coordinates },
+    })),
+  );
+}
+
+/** Only a direction: shown when there is no route. */
+export function straightLine(from: LngLat, to: LngLat): FeatureCollection {
+  return collection([
+    { type: "Feature", properties: { kind: "straight" }, geometry: { type: "LineString", coordinates: [from, to] } },
+  ]);
 }

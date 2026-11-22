@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { published } from "../data/testing";
 import { localStyle } from "./basemap";
-import { appLayers, staticMapData } from "./layers";
+import { accuracyCircle, appLayers, staticMapData } from "./layers";
 import { EMPTY } from "./registry";
 
 describe("appLayers", () => {
@@ -45,5 +45,15 @@ describe("staticMapData", () => {
 
   it("copes with a dataset without a boundary", () => {
     expect(staticMapData({ ...core, boundary: null }).campus.features).toEqual([]);
+  });
+});
+
+describe("accuracyCircle", () => {
+  it("is in metres: 10 m is about 37 pixels at zoom 18 in Jorhat", () => {
+    const { radius } = accuracyCircle([94.25, 26.745], 10).features[0].properties as { radius: number };
+    // 0.597 m per pixel at the equator, times cos(26.7 degrees), for 256 px tiles.
+    const metresPerPixel = (0.5971642834779395 * Math.cos((26.745 * Math.PI) / 180)) / 2;
+
+    expect(radius * 2 ** 18).toBeCloseTo(10 / metresPerPixel, 1);
   });
 });

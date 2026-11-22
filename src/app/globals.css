@@ -122,3 +122,39 @@ body {
 .app-frame [data-locked="true"] .maplibregl-ctrl-group {
   visibility: hidden;
 }
+
+/* The blue dot. */
+.user-dot {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #1d4ed8;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 50%);
+}
+
+.user-dot[data-quality="stale"],
+.user-dot[data-quality="poor"] {
+  background: #6b7280;
+}
+
+/* The direction of movement, when it is known. */
+.user-dot[data-heading]::before {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  border: 8px solid transparent;
+  border-bottom: 12px solid #1d4ed8;
+  border-top: 0;
+  content: "";
+  transform: translateX(-50%) translateY(-3px);
+}
+
+/* Inside a building GPS is too vague for a dot. */
+.user-dot[data-indoors="true"] {
+  width: 44px;
+  height: 44px;
+  border-color: rgb(255 255 255 / 60%);
+  background: rgb(29 78 216 / 35%);
+}
+

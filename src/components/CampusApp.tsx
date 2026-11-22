@@ -6,28 +6,30 @@ import { useEffect, useState } from "react";
 
 import DatasetError from "@/components/screens/DatasetError";
 import MessageCard from "@/components/screens/MessageCard";
-import Badge from "@/components/ui/Badge";
-import Button from "@/components/ui/Button";
-import InfoBar from "@/components/ui/InfoBar";
-import OnlineMapPrompt from "@/components/ui/OnlineMapPrompt";
-import PlaceEditor from "@/components/ui/PlaceEditor";
-import SearchBox, { type SearchHit } from "@/components/ui/SearchBox";
-import { useColourScheme } from "@/hooks/useColourScheme";
 import { useDataset } from "@/hooks/useDataset";
-import { useOnlineMap } from "@/hooks/useOnlineMap";
-import { config, isEditorRequested } from "@/lib/config";
+import { ControllerContext } from "@/hooks/useController";
+import { config, isMockRequested } from "@/lib/config";
+import { CampusController } from "@/lib/controller";
 import type { PublishedDataset } from "@/lib/data/published";
-import type { LngLat } from "@/lib/geo/types";
-import { providerName } from "@/lib/map/basemap";
+import { middleOf } from "@/lib/location/mockPresets";
+import { MockLocationProvider } from "@/lib/location/mockProvider";
+import { RealLocationProvider, browserEnvironment } from "@/lib/location/realProvider";
+import type { Destination } from "@/lib/state/types";
 
-import type { MapHandle, MapProblem } from "./map/MapSurface";
+// The map needs a browser, so none of it runs while the page is rendered on the server.
+const Campus = dynamic(() => import("./Campus"), {
+  ssr: false,
+  loading: () => <Centred>Loading the campus map…</Centred>,
+});
 
-// The map needs a browser, so it never runs while the page is rendered on the server.
-const MapSurface = dynamic(() => import("./map/MapSurface"), { ssr: false });
-const SelectionMarker = dynamic(() => import("./map/SelectionMarker"), { ssr: false });
+export interface CampusAppProps {
+  /** A destination from a shared link. It says where to go, never where anyone is. */
+  linked?: Destination;
+}
 
-export default function CampusApp() {
+export default function CampusApp({ linked }: CampusAppProps) {
   const { state, retry } = useDataset();
+  const mock = isMockRequested(config, useSearchParams());
 
   return (
     <main className="app-frame bg-surface-2">
@@ -37,97 +39,50 @@ export default function CampusApp() {
           <DatasetError kind={state.kind} onRetry={retry} />
         </Centred>
       )}
-      {state.status === "ready" && <Campus dataset={state.dataset} />}
+      {state.status === "ready" && (
+        // Switching between real and fake GPS starts over: no position may survive it.
+        <Connected key={mock ? "mock" : "real"} dataset={state.dataset} mock={mock} linked={linked} />
+      )}
     </main>
   );
 }
 
-function Campus({ dataset }: { dataset: PublishedDataset }) {
-  const params = useSearchParams();
-  const editing = isEditorRequested(config, params);
-  const theme = useColourScheme();
-  const online = useOnlineMap();
+interface ConnectedProps {
+  dataset: PublishedDataset;
+  mock: boolean;
+  linked?: Destination;
+}
 
-  const [handle, setHandle] = useState<MapHandle | null>(null);
-  const [problem, setProblem] = useState<MapProblem | null>(null);
-  const [selected, setSelected] = useState<SearchHit | null>(null);
-  const [clicked, setClicked] = useState<LngLat | null>(null);
+function Connected({ dataset, mock, linked }: ConnectedProps) {
+  const [{ controller, gps }] = useState(() => {
+    const fake = mock ? new MockLocationProvider(middleOf(dataset.bounds)) : null;
+    const provider = fake ?? new RealLocationProvider(browserEnvironment());
+    return { controller: new CampusController({ dataset, provider }), gps: fake };
+  });
 
   useEffect(() => {
-    if (!handle || !editing) return;
-    const click = handle.map.on("click", ({ lngLat }) => setClicked([lngLat.lng, lngLat.lat]));
-    return () => click.unsubscribe();
-  }, [handle, editing]);
+    controller.connect();
+    controller.restore();
+    if (linked) controller.dispatch({ type: "destination/set", destination: linked });
+    return () => controller.disconnect();
+  }, [controller, linked]);
 
+  if (!dataset.boundary && dataset.buildings.length === 0) {
+    return (
+      <Centred>
+        <MessageCard title="There is no campus data yet">
+          <p>The map is empty. Please come back later.</p>
+        </MessageCard>
+      </Centred>
+    );
+  }
   return (
-    <div className="absolute inset-0 [--sheet-height:3.75rem]">
-      {problem !== "no-webgl" && (
-        <MapSurface
-          dataset={dataset}
-          theme={theme}
-          online={online.allowed === true}
-          interactive
-          onHandle={setHandle}
-          onProblem={setProblem}
-        />
-      )}
-
-      {handle && selected && <SelectionMarker handle={handle} position={selected.position} />}
-
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 px-3 pt-[calc(var(--safe-top)+0.75rem)]">
-        <SearchBox dataset={dataset} onSelect={setSelected} />
-        {dataset.mode === "demo" && <Badge testId="demo-badge">Demo data: not the real campus</Badge>}
-      </div>
-
-      {problem === "no-webgl" && (
-        <Centred>
-          <MessageCard title="This device can't draw the map" role="alert" testId="no-webgl">
-            <p>The map needs WebGL, which is switched off or missing here. The search still works.</p>
-          </MessageCard>
-        </Centred>
-      )}
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 pb-[var(--safe-bottom)]">
-        {problem === "context-lost" && <Notice>The graphics were reset. The map is coming back…</Notice>}
-        {problem === "online-failed" && (
-          <Notice>
-            The street map could not be loaded. The campus map still works.{" "}
-            <Button look="quiet" onClick={() => setProblem(null)}>
-              OK
-            </Button>
-          </Notice>
-        )}
-        {online.allowed === null && (
-          <OnlineMapPrompt
-            provider={providerName(config)}
-            onAccept={() => online.decide(true)}
-            onDecline={() => online.decide(false)}
-          />
-        )}
-        {editing && <PlaceEditor position={clicked} />}
-        <div className="pointer-events-auto w-full bg-surface">
-          <InfoBar />
-        </div>
-      </div>
-    </div>
+    <ControllerContext value={controller}>
+      <Campus gps={gps} />
+    </ControllerContext>
   );
 }
 
 function Centred({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
-      <div className="contents">{children}</div>
-    </div>
-  );
-}
-
-function Notice({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      role="status"
-      className="pointer-events-auto mx-3 rounded-xl bg-warn-surface px-4 py-2 text-sm text-warn shadow"
-    >
-      {children}
-    </p>
-  );
+  return <div className="absolute inset-0 flex items-center justify-center p-4">{children}</div>;
 }
