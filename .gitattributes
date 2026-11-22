@@ -1,0 +1,10 @@
+# Store and check out every text file with LF line endings on every OS.
+* text=auto eol=lf
+
+# Never touch the bytes of binary files.
+*.ico  binary
+*.jpg  binary
+*.jpeg binary
+*.png  binary
+*.webp binary
+*.woff2 binary
