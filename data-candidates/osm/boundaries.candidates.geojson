@@ -1,0 +1,10 @@
+{
+  "type": "FeatureCollection",
+  "candidates": true,
+  "kind": "boundary",
+  "attribution": "© OpenStreetMap contributors (ODbL)",
+  "origin": "https://overpass-api.de/api/interpreter",
+  "osmDataFrom": "2026-11-22T21:25:58Z",
+  "retrievedAt": "2026-11-22T21:34:16.486Z",
+  "features": []
+}

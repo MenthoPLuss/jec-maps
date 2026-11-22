@@ -1,0 +1,4 @@
+id,building_id,level,room_number,name,aliases,type,department,near,door_id,source,review_status,accuracy_status,accuracy_m,accuracy_note
+,example-building,0,007,Example Machines Lab,electrical lab,lab,Example Department,second door after the stairs,,field survey 2026-11-30,unreviewed,,,
+,example-building,1,B-12A,Example Classroom,,classroom,,opposite the notice board,,field survey 2026-11-30,unreviewed,,,
+,example-building,1,,Example Toilet,,toilet,,next to the stairs,,field survey 2026-11-30,unreviewed,,,

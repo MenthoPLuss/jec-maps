@@ -11,9 +11,9 @@ a student, in the open, one phase at a time.
 | Phase | What it adds | State |
 | ----- | ------------ | ----- |
 | 1 | Clean repository, tests, CI | Done |
-| 2 | Map foundation that works without any outside service | Next |
-| 3 | Campus data format, demo campus, import scripts | Planned |
-| 4 | Real GPS and a fake GPS for testing | Planned |
+| 2 | Map foundation that works without any outside service | Done |
+| 3 | Campus data format, demo campus, import scripts | Done |
+| 4 | Real GPS and a fake GPS for testing | Next |
 | 5 | "Are you on campus?" logic | Planned |
 | 6 | Search, walking routes, arrival: the MVP | Planned |
 | 7 | Building, floor and room guidance | Planned |
@@ -47,12 +47,21 @@ Open <http://localhost:3000>.
 | `npm run typecheck` | Check the TypeScript types |
 | `npm test` | Unit tests |
 | `npm run test:e2e` | Browser tests. The first time, run `npx playwright install chromium` |
+| `npm run data:validate` | Check the campus data |
 
 ## Settings
 
 Copy [.env.example](.env.example) to `.env.local` and edit the copy. Every
 setting is explained inside. None of them is a secret: they all end up in the
 browser.
+
+## Campus data
+
+The app shows a made-up demo campus until real, reviewed data exists.
+
+- [Collecting campus data](docs/data-collection.md): the guide for students
+- [Floor plans](docs/indoor-data.md): how they are drawn, and how far to trust them
+- [How it works](docs/architecture.md): from files to the map, and the rules
 
 ## Data conventions
 

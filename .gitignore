@@ -49,3 +49,9 @@ next-env.d.ts
 /public/maplibre/
 /public/data/
 /public/.data-*/
+
+# photos, videos, walks and everything made from them stay on this computer
+/raw-data/*
+!/raw-data/README.md
+!/raw-data/places.template.csv
+!/raw-data/rooms.template.csv

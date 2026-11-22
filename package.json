@@ -17,7 +17,10 @@
     "test:watch": "node scripts/run-vitest.mjs",
     "test:e2e": "playwright test --trace off",
     "data:demo": "tsx scripts/make-demo-data.ts",
-    "data:validate": "tsx scripts/validate-data.ts"
+    "data:validate": "tsx scripts/validate-data.ts",
+    "data:osm": "tsx scripts/osm-import.ts",
+    "data:build": "tsx scripts/build-data.ts",
+    "data:approve": "tsx scripts/approve-data.ts"
   },
   "dependencies": {
     "@turf/boolean-point-in-polygon": "^7.4.0",

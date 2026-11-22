@@ -71,6 +71,16 @@ const meta = z.strictObject({
   placeholder: z.boolean(),
   reviewStatus: reviewStatusSchema,
   accuracy: accuracy.optional(),
+  reviewedBy: z.string().min(1).optional(),
+  reviewedOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "must look like 2026-11-30")
+    .optional(),
+  /** The OpenStreetMap object, kept apart from our own id. */
+  osmId: z
+    .string()
+    .regex(/^(node|way|relation)\/\d+$/, "must look like way/123 or relation/456")
+    .optional(),
 });
 
 const reviewRule = <T extends z.ZodType<{ placeholder: boolean; reviewStatus: string }>>(schema: T) =>
@@ -102,11 +112,6 @@ export const buildingSchema = feature(
         }),
       defaultLevel: level.optional(),
       entranceIds: z.array(id),
-      /** The OpenStreetMap object, kept apart from our own id. */
-      osmId: z
-        .string()
-        .regex(/^(node|way|relation)\/\d+$/, "must look like way/123 or relation/456")
-        .optional(),
     }),
   ).refine(
     (building) =>

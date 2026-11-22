@@ -1,0 +1,3 @@
+id,name,aliases,category,lat,lng,building_id,entrance_ids,source,review_status,accuracy_status,accuracy_m,accuracy_note
+example-gate,Example Gate,front gate|gate 1,gate,26.7441556,94.2506399,,,field survey 2026-11-30,unreviewed,estimated,5,average of 3 phone fixes
+example-canteen,Example Canteen,food,canteen,26.7449470,94.2497335,,,field survey 2026-11-30,unreviewed,,,
