@@ -59,6 +59,11 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Focused by the app, so that a screen reader continues there: no ring needed. */
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
 :focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;

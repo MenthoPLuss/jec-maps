@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 
 import { APP_NAME, DISCLAIMER } from "@/lib/text";
 
-import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

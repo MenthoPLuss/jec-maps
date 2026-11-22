@@ -5,7 +5,7 @@ import { DISCLAIMER } from "@/lib/text";
 /** The disclaimer and the links that are always within reach, on and off campus. */
 export default function InfoBar() {
   return (
-    <footer className="px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted">
+    <footer className="px-3 pt-1.5 text-center text-xs leading-tight text-ink-muted">
       <p>{DISCLAIMER}</p>
       <nav aria-label="Information" className="flex justify-center gap-1">
         {[
@@ -13,7 +13,7 @@ export default function InfoBar() {
           ["/privacy", "Privacy"],
           ["/help", "Help"],
         ].map(([href, name]) => (
-          <Link key={href} href={href} className="px-2 py-1.5 font-medium text-accent underline underline-offset-2">
+          <Link key={href} href={href} className="inline-flex min-h-9 items-center px-3 font-medium text-accent underline underline-offset-2">
             {name}
           </Link>
         ))}

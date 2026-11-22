@@ -17,8 +17,8 @@ a student, in the open, one phase at a time.
 | 5 | "Are you on campus?" logic | Done |
 | 6 | Search, walking routes, arrival: the MVP | Done |
 | 7 | Building, floor and room guidance | Done |
-| 8 | Polish, accessibility, "Add to Home Screen" | Next |
-| 9 | Full browser tests and release notes | Planned |
+| 8 | Polish, accessibility, "Add to Home Screen" | Done |
+| 9 | Full browser tests and release notes | Next |
 
 **There is no surveyed campus data yet.** Until there is, the app can only be
 demonstrated with made-up data and a fake GPS. It must not be used to find your

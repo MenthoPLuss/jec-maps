@@ -21,7 +21,8 @@
     "data:osm": "tsx scripts/osm-import.ts",
     "data:build": "tsx scripts/build-data.ts",
     "data:approve": "tsx scripts/approve-data.ts",
-    "demo": "node scripts/demo.mjs"
+    "demo": "node scripts/demo.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
     "@turf/boolean-point-in-polygon": "^7.4.0",

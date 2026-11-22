@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -8,8 +9,7 @@ import BuildingPanel from "@/components/indoor/BuildingPanel";
 import ConfirmedCard from "@/components/indoor/ConfirmedCard";
 import FloorSwitcher from "@/components/indoor/FloorSwitcher";
 import RoomCard from "@/components/indoor/RoomCard";
-import MapOverlays from "@/components/map/MapOverlays";
-import MapSurface, { type MapHandle, type MapProblem } from "@/components/map/MapSurface";
+import type { MapHandle, MapProblem } from "@/components/map/MapSurface";
 import NavigationCard from "@/components/nav/NavigationCard";
 import SelectionCard from "@/components/nav/SelectionCard";
 import SuggestionCard from "@/components/nav/SuggestionCard";
@@ -27,6 +27,7 @@ import QualityBadge from "@/components/ui/QualityBadge";
 import SearchBox from "@/components/ui/SearchBox";
 import { useColourScheme } from "@/hooks/useColourScheme";
 import { useAppState, useController } from "@/hooks/useController";
+import { useIdle } from "@/hooks/useIdle";
 import { useOnlineMap } from "@/hooks/useOnlineMap";
 import { prefersReducedMotion } from "@/hooks/useReducedMotion";
 import { config, isEditorRequested } from "@/lib/config";
@@ -38,6 +39,10 @@ import type { SearchItem } from "@/lib/search/search";
 import { capabilitiesOf } from "@/lib/state/capabilities";
 import { destinationInfo } from "@/lib/state/destination";
 import type { AppState, Destination } from "@/lib/state/types";
+
+// The map engine is by far the biggest part of the app, so everything else comes first.
+const MapSurface = dynamic(() => import("@/components/map/MapSurface"), { ssr: false });
+const MapOverlays = dynamic(() => import("@/components/map/MapOverlays"), { ssr: false });
 
 type Screen = "browse" | "permission" | "problem" | "finding" | "locked" | "campus";
 
@@ -86,6 +91,8 @@ export default function Campus({ gps, linked }: CampusProps) {
 
   const room = selection?.kind === "room" ? dataset.rooms.find(({ id }) => id === selection.id) : undefined;
   const isOpen = screen === "campus" || screen === "browse";
+  // The words come first: the map engine can wait for a quiet moment.
+  const isIdle = useIdle();
   const canGo = screen === "campus" && capabilities.guidance;
 
   // Going into a building or out of it: the map matters most.
@@ -141,7 +148,7 @@ export default function Campus({ gps, linked }: CampusProps) {
       className="absolute inset-0"
       style={{ "--sheet-height": `${sheetHeight}px`, "--top-height": indoors ? "8rem" : "4.5rem" } as React.CSSProperties}
     >
-      {mapProblem !== "no-webgl" && (
+      {mapProblem !== "no-webgl" && (isIdle || screen === "campus") && (
         <MapSurface
           dataset={dataset}
           theme={theme}

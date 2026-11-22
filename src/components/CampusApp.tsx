@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import DatasetError from "@/components/screens/DatasetError";
 import MessageCard from "@/components/screens/MessageCard";
+import Welcome from "@/components/Welcome";
 import { useDataset } from "@/hooks/useDataset";
 import { ControllerContext } from "@/hooks/useController";
 import { config, isMockRequested } from "@/lib/config";
@@ -19,7 +20,7 @@ import type { Destination } from "@/lib/state/types";
 // The map needs a browser, so none of it runs while the page is rendered on the server.
 const Campus = dynamic(() => import("./Campus"), {
   ssr: false,
-  loading: () => <Centred>Loading the campus map…</Centred>,
+  loading: () => <Welcome />,
 });
 
 export interface CampusAppProps {
@@ -33,7 +34,7 @@ export default function CampusApp({ linked }: CampusAppProps) {
 
   return (
     <main className="app-frame bg-surface-2">
-      {state.status === "loading" && <Centred>Loading the campus map…</Centred>}
+      {state.status === "loading" && <Welcome />}
       {state.status === "failed" && (
         <Centred>
           <DatasetError kind={state.kind} onRetry={retry} />

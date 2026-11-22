@@ -92,6 +92,7 @@ async function coloursOnMap(page: Page): Promise<number> {
 
 /** Fails while the map is blank: campus, paths and buildings each have their own colour. */
 export async function expectMapDrawn(page: Page): Promise<void> {
+  await expect(page.locator("canvas.maplibregl-canvas")).toBeVisible();
   await expect.poll(() => coloursOnMap(page), { message: "colours on the map", timeout: 20_000 }).toBeGreaterThanOrEqual(4);
 }
 

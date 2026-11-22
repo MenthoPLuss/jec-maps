@@ -103,3 +103,49 @@ test("the image optimizer endpoint is switched off", async ({ request }) => {
 
   expect(response.status()).toBe(404);
 });
+
+test("can be added to the home screen", async ({ request }) => {
+  const manifest = await (await request.get("/manifest.webmanifest")).json();
+  expect(manifest).toMatchObject({ name: "JEC Maps", display: "standalone" });
+  for (const icon of manifest.icons) {
+    const response = await request.get(icon.src);
+    expect(response.headers()["content-type"]).toBe("image/png");
+  }
+  for (const path of ["/favicon.ico", "/icon.svg", "/apple-icon.png"]) {
+    expect((await request.get(path)).status(), path).toBe(200);
+  }
+});
+
+test("the page has something to read before any script runs", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto(baseURL as string);
+  await expect(page.getByRole("heading", { name: "JEC Maps" })).toBeVisible();
+  await expect(page.getByText("Unofficial student project")).toBeVisible();
+  await context.close();
+});
+
+test("everything that can be pressed is big enough and has a name", async ({ page }) => {
+  await page.goto("/");
+  await expectMapDrawn(page);
+
+  for (const element of await page.locator("button:visible, a:visible, input:visible").all()) {
+    const box = (await element.boundingBox())!;
+    const name = await element.evaluate((node) => node.getAttribute("aria-label") ?? node.textContent?.trim() ?? "");
+    expect(name, await element.evaluate((node) => node.outerHTML.slice(0, 80))).not.toBe("");
+    // WCAG 2.2 asks for 24 px. The attribution toggle belongs to MapLibre.
+    expect(Math.min(box.width, box.height), name).toBeGreaterThanOrEqual(24);
+  }
+});
+
+for (const width of [360, 430]) {
+  test(`nothing overflows at ${width} px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 740 });
+    for (const path of ["/", "/about", "/privacy", "/help", "/room/demo-block-a/demo-a-102"]) {
+      await page.goto(path);
+      await expect(page.getByText("Unofficial student project").first()).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, path).toBeLessThanOrEqual(0);
+    }
+  });
+}
