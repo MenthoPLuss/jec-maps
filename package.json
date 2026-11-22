@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@turf/boolean-point-in-polygon": "^7.4.0",
+    "fuse.js": "^7.5.0",
     "maplibre-gl": "^6.11.2",
     "next": "16.4.6",
     "react": "19.2.8",
