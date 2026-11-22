@@ -28,6 +28,8 @@ export default defineConfig({
     command: `npm run build && npm run start -- -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
+    // Tests never depend on real campus data.
+    env: { JEC_DATASET: "demo" },
     timeout: 180_000,
   },
 });

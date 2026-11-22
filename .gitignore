@@ -45,5 +45,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# copied from node_modules on every dev run and build
+# written by scripts on every dev run and build
 /public/maplibre/
+/public/data/
+/public/.data-*/
