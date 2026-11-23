@@ -11,5 +11,8 @@ export default defineConfig({
     // Only pure logic is unit-tested, so no browser environment is needed.
     environment: "node",
     include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
+    // The importer tests take up to 2 s here; shared CI machines can be several
+    // times slower, and the default of 5 s would fail them for no real reason.
+    testTimeout: 30_000,
   },
 });
