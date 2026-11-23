@@ -23,7 +23,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    // Browser extensions add attributes to <html> before React starts, such as
+    // __gcrremoteframetoken. This accepts them, but only on this one element: a
+    // mismatch inside the page is still reported.
+    <html lang="en" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
