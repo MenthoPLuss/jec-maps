@@ -52,12 +52,26 @@ npm run data:osm                 # writes candidates to data-candidates/osm
 npm run data:osm -- --dry-run    # only shows what would change
 ```
 
-Look at the files (drop them on <https://geojson.io>, or open them in QGIS).
-Approve the good ones:
+### Review and approve them
+
+1. Run `npm run dev` and open <http://localhost:3000/review>.
+2. Type your name. It is saved with everything you approve.
+3. Press **Open candidate files** and choose the three files in
+   `data-candidates/osm`. They stay in your browser: nothing is uploaded.
+4. Pick a file at the top. Choose records with their boxes in the list, or by
+   clicking them on the map. **Show** zooms to one, **On OSM** opens it on
+   openstreetmap.org.
+5. For paths, also say who may walk there. A red line with gaps is chosen but not
+   connected to the other paths: routes would never use it. Usually a junction is
+   missing in OpenStreetMap.
+6. Copy the command under the list, paste it into a terminal in the project
+   folder and run it. Add `--dry-run` at the end to try it first.
+7. Press **Reload approved data**. What you approved turns green.
+
+Do the campus outline first, then the buildings, then the paths. The command
+looks like this, if you want to type it yourself:
 
 ```bash
-npm run data:approve -- --file data-candidates/osm/boundaries.candidates.geojson --ids jorhat-engineering-college --reviewer "Your name"
-npm run data:approve -- --file data-candidates/osm/buildings.candidates.geojson --ids jec-library,jec-canteen --reviewer "Your name"
 npm run data:approve -- --file data-candidates/osm/paths.candidates.geojson --ids osm-way-1-1,osm-way-1-2 --access public --reviewer "Your name"
 ```
 
@@ -91,9 +105,22 @@ with anyone.
 4. Put it in `raw-data/<building-id>/outside/` and run `npm run data:build`.
 
 The report `raw-data/candidates/entrances.report.json` lists the positions. They
-can be off by many metres, so use them as a hint. Add the entrance to
-`src/data/live/entrances.geojson` yourself, with the junction of the path that
-leads to it, and list it in its building's `entranceIds`.
+can be off by many metres, so they are only a hint. Place the entrances on the
+review page:
+
+1. Approve the building and the paths around it first.
+2. On <http://localhost:3000/review>, open `entrances.report.json` to see the photo
+   positions as grey circles, then press **Place entrances**.
+3. Click the map at the door, on the wall. Give it a name such as "Front door",
+   say who may use it, and check the path junction in front of it. A footway that
+   ends at the door is best: if the nearest junction is more than 10 m away,
+   draw one in OpenStreetMap first.
+4. Press **Add entrance**, and do the next door.
+5. **Download** `entrances.candidates.geojson`, save it in `raw-data/candidates`,
+   and run the command that the page shows.
+
+Approving an entrance also adds it to the list of entrances of its building.
+That is the only change approval ever makes to a record approved before.
 
 ## 4. Places and rooms
 
@@ -109,6 +136,8 @@ npm run data:build
 npm run data:approve -- --file raw-data/candidates/places.candidates.geojson --all --reviewer "Your name"
 npm run data:approve -- --file raw-data/candidates/rooms.candidates.json --all --reviewer "Your name"
 ```
+
+To approve only some of them, open the files on the review page instead.
 
 ## 5. Walkthrough videos
 

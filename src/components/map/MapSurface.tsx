@@ -2,7 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { Map as MapLibreMap, NavigationControl, setWorkerUrl } from "maplibre-gl";
+import { Map as MapLibreMap, NavigationControl } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { prefersReducedMotion } from "@/hooks/useReducedMotion";
@@ -12,6 +12,7 @@ import { labelFonts, localStyle, onlineStyle } from "@/lib/map/basemap";
 import { WORLD, createAppRegistry, staticMapData, type AppSource } from "@/lib/map/layers";
 import type { LayerRegistry } from "@/lib/map/registry";
 import { MAP_THEMES, type ThemeName } from "@/lib/map/theme";
+import { configureWorker } from "@/lib/map/worker";
 
 export interface MapHandle {
   map: MapLibreMap;
@@ -45,15 +46,6 @@ interface MapSurfaceProps {
 /** How far around the campus the map may be moved, in degrees (about 1.3 km). */
 const PADDING_DEG = 0.012;
 const ONLINE_TIMEOUT_MS = 12_000;
-
-let workerConfigured = false;
-
-/** Has to happen before the first map. Only ever called in the browser. */
-function configureWorker(): void {
-  if (workerConfigured) return;
-  setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
-  workerConfigured = true;
-}
 
 export default function MapSurface(props: MapSurfaceProps) {
   const { dataset, indoors, online, interactive, onHandle, onProblem } = props;

@@ -117,6 +117,11 @@ browser.
 
 The app shows a made-up demo campus until real, reviewed data exists.
 
+While `npm run dev` runs, <http://localhost:3000/review> is the review page: open
+the candidate files, click what you have checked on the map, and copy the command
+that approves it. It also places entrances. The files stay in your browser. A
+normal build doesn't have this page.
+
 - [Collecting campus data](docs/data-collection.md): the guide for students
 - [Floor plans](docs/indoor-data.md): how they are drawn, and how far to trust them
 - [How it works](docs/architecture.md): from files to the map, and the rules

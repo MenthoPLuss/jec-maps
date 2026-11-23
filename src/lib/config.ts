@@ -47,6 +47,14 @@ export function isEditorRequested(config: AppConfig, params: { get(name: string)
   return config.demoEnabled && params.get("edit") === "1";
 }
 
+/**
+ * The review page (/review) is a tool for the people who collect the data. It runs
+ * with `npm run dev` and in demo builds, and is "not found" in a normal build.
+ */
+export function isReviewToolAvailable(config: AppConfig, nodeEnv: string | undefined): boolean {
+  return config.demoEnabled || nodeEnv === "development";
+}
+
 /** Only https, or a server on this computer. */
 export function isSafeTileUrl(url: string): boolean {
   try {

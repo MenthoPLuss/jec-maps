@@ -91,6 +91,16 @@ describe("publish-data", () => {
     expect(JSON.parse(readFileSync(path.join(output, "data", "core.json"), "utf8")).mode).toBe("demo");
   });
 
+  it("clears what an interrupted publish left behind, because everything in public is served", () => {
+    mkdirSync(path.join(workspace, "public", ".data-new-abc"));
+    writeFileSync(path.join(workspace, "public", ".data-new-abc", "core.json"), "{}");
+
+    publish();
+    publish();
+
+    expect(readdirSync(path.join(workspace, "public"))).toEqual(["data"]);
+  });
+
   it("gives the same bytes every time", () => {
     publish();
     const first = readFileSync(path.join(workspace, "public", "data", "core.json"), "utf8");

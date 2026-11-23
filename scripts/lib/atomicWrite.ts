@@ -25,7 +25,7 @@ export function writeFilesAtomically(folder: string, files: Record<string, strin
   const swapped: typeof staged = [];
   try {
     for (const entry of staged) {
-      renameSync(entry.temporary, entry.target);
+      renameWithRetry(entry.temporary, entry.target);
       swapped.push(entry);
     }
   } catch (error) {
@@ -35,5 +35,24 @@ export function writeFilesAtomically(folder: string, files: Record<string, strin
     }
     for (const { temporary } of staged) rmSync(temporary, { force: true });
     throw error;
+  }
+}
+
+/** What Windows says while another program, often a virus scanner, has a file open. */
+const BUSY = new Set(["EPERM", "EACCES", "EBUSY"]);
+const RETRY_DELAYS_MS = [50, 100, 200, 400, 800];
+
+/** `renameSync`, tried again for a moment while Windows keeps the file busy. */
+export function renameWithRetry(from: string, to: string): void {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      renameSync(from, to);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (process.platform !== "win32" || !code || !BUSY.has(code) || attempt >= RETRY_DELAYS_MS.length) throw error;
+      // A synchronous pause: the scripts that call this are synchronous throughout.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, RETRY_DELAYS_MS[attempt]);
+    }
   }
 }

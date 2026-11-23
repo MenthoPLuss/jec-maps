@@ -51,12 +51,35 @@ function isPath(record: object): boolean {
   return (record as { geometry?: { type?: string } }).geometry?.type === "LineString";
 }
 
-function differences(a: object, b: object): string[] {
-  const left = flat(a);
-  const right = flat(b);
+function differences(approved: object, candidate: object): string[] {
+  const left = flat(approved);
+  const right = flat(candidate);
+  // OpenStreetMap knows no entrances: an empty list says nothing about the approved one.
+  const unknown = (key: string) => key === "entranceIds" && Array.isArray(right[key]) && right[key].length === 0;
   return [...new Set([...Object.keys(left), ...Object.keys(right)])]
-    .filter((key) => !REVIEW_FIELDS.has(key) && JSON.stringify(left[key]) !== JSON.stringify(right[key]))
+    .filter((key) => !REVIEW_FIELDS.has(key) && !unknown(key) && JSON.stringify(left[key]) !== JSON.stringify(right[key]))
     .sort();
+}
+
+/**
+ * An approved entrance has to be listed by its building. This is the one change that
+ * approving makes to a record that was approved before: it only ever adds the id.
+ */
+export function linkEntrances<T extends object>(buildings: T[], entrances: object[]): { buildings: T[]; linked: string[] } {
+  const linked: string[] = [];
+  const result = buildings.map((building) => {
+    const facts = (building as AnyRecord).properties;
+    if (!facts) return building;
+    const listed = Array.isArray(facts.entranceIds) ? (facts.entranceIds as string[]) : [];
+    const added = entrances
+      .map((entrance) => (entrance as AnyRecord).properties)
+      .filter((entrance) => entrance?.buildingId === facts.id && !listed.includes(entrance.id))
+      .map((entrance) => entrance?.id as string);
+    if (added.length === 0) return building;
+    linked.push(...added.map((id) => `${facts.id} now lists ${id}`));
+    return { ...building, properties: { ...facts, entranceIds: [...listed, ...added] } };
+  });
+  return { buildings: result, linked };
 }
 
 function flat(record: object): Record<string, unknown> {

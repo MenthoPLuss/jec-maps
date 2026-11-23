@@ -1,6 +1,8 @@
 // npm run data:approve -- --file <candidates> --ids a,b --reviewer "Your name" [--access public] [--dry-run]
-// Moves candidates that a person has checked into src/data/live.
+// Moves candidates that a person has checked into src/data/live, then publishes the
+// result for the app. The review page (/review) writes these commands.
 // Approved records are never changed: differences are reported, and you decide.
+// The one exception: an approved entrance is added to the list of its building.
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -13,7 +15,8 @@ import { writeFilesAtomically } from "./lib/atomicWrite";
 import { readCandidates, type CandidateKind } from "./lib/candidates";
 import { formatIssue, hasErrors } from "./lib/datasetFolder";
 import { formatCollection, formatJson } from "./lib/format";
-import { mergeApproved } from "./lib/merge";
+import { linkEntrances, mergeApproved } from "./lib/merge";
+import { publishActive } from "./lib/publishActive";
 
 type Json = Record<string, unknown>;
 
@@ -23,6 +26,7 @@ const FILE_OF: Partial<Record<CandidateKind, string>> = {
   paths: "campus-paths.geojson",
   places: "places.geojson",
   rooms: "rooms.json",
+  entrances: "entrances.geojson",
 };
 
 const NEW_MANIFEST = {
@@ -65,7 +69,7 @@ function main(): void {
   const candidates = readCandidates(values.file);
   if (!candidates) fail(`There is no file ${values.file}`);
   const target = FILE_OF[candidates.kind];
-  if (!target) fail("Entrance suggestions can't be approved as they are: add the entrance to entrances.geojson yourself.");
+  if (!target) fail("Photo positions are only hints: place the entrances on the review page (/review), then approve that file.");
 
   const wanted = values.ids?.split(",").map((id) => id.trim()).filter(Boolean);
   const chosen = candidates.records.filter((record) => values.all || wanted?.includes(idOf(record)));
@@ -90,6 +94,12 @@ function main(): void {
 
   // Check the whole dataset as it would be, before anything is written.
   const next = { ...live, [target]: candidates.kind === "rooms" ? merged : { type: "FeatureCollection", features: merged } };
+  if (candidates.kind === "entrances") {
+    const fresh = reviewed.filter((record) => added.includes(idOf(record)));
+    const { buildings, linked } = linkEntrances(listOf(live[FILE_OF.buildings as string]), fresh);
+    next[FILE_OF.buildings as string] = { type: "FeatureCollection", features: buildings };
+    for (const line of linked) console.log(`  ${line}`);
+  }
   const { dataset, issues } = parseDataset(next);
   if (dataset) issues.push(...checkDataset(dataset));
   for (const issue of issues) console.log(`  ${formatIssue(issue)}`);
@@ -112,6 +122,17 @@ function main(): void {
   console.log(`Approved: ${added.join(", ")}`);
   const { live: guidance } = coverageOf(dataset);
   console.log(guidance.available ? "Real guidance is now available." : `Real guidance is not available yet. ${guidance.reasons.join(" ")}`);
+
+  // So that the app and the review page show it after a reload, without a restart.
+  // The approval itself is done by now, whatever happens here.
+  try {
+    const published = publishActive(process.cwd());
+    if (published.ok) console.log(`Published the ${published.name} dataset for the app: reload the page to see it.`);
+    else console.log("The app still shows the data from before: run npm run data:validate to see why.");
+  } catch (error) {
+    console.log(`The app still shows the data from before (${error instanceof Error ? error.message : error}).`);
+    console.log("Restart npm run dev to publish it.");
+  }
 }
 
 /** The live dataset as raw JSON, or an empty one to start with. */

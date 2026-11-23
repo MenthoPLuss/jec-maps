@@ -2,17 +2,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import { parseCandidates, type CandidateFile, type CandidateKind } from "../../src/lib/review/candidates";
 import { writeFilesAtomically } from "./atomicWrite";
 import { formatCollection, formatJson } from "./format";
 
-export type CandidateKind = "boundary" | "buildings" | "paths" | "places" | "rooms" | "entrance-suggestions";
-
-export interface CandidateFile {
-  kind: CandidateKind;
-  /** Where the data comes from, for the reviewer and for the credit line. */
-  provenance: Record<string, string>;
-  records: object[];
-}
+export type { CandidateFile, CandidateKind };
 
 export interface Changes {
   added: string[];
@@ -55,14 +49,7 @@ function formatCandidates({ kind, provenance, records }: CandidateFile): string 
 /** Null when there is no such file. Throws when the file is not a candidate file. */
 export function readCandidates(file: string): CandidateFile | null {
   if (!existsSync(file)) return null;
-  const raw = JSON.parse(readFileSync(file, "utf8").replace(/^﻿/, "")) as Record<string, unknown>;
-  const { kind, features, records, candidates, type, ...rest } = raw;
-  void type;
-  const list = features ?? records;
-  if (candidates !== true || typeof kind !== "string" || !Array.isArray(list)) {
-    throw new Error(`${file} is not a candidate file`);
-  }
-  return { kind: kind as CandidateKind, provenance: rest as Record<string, string>, records: list };
+  return parseCandidates(readFileSync(file, "utf8"), file);
 }
 
 export function changesBetween(before: object[], after: object[]): Changes {

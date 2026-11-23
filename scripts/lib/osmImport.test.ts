@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildingSchema, boundarySchema, pathSchema } from "../../src/lib/data/schemas";
 import { localPlane } from "../../src/lib/geo/localPlane";
 import { JEC_CENTRE, type LngLat } from "../../src/lib/geo/types";
-import { mergeApproved } from "./merge";
+import { linkEntrances, mergeApproved } from "./merge";
 import { joinRings, osmToCandidates } from "./osmImport";
 import { OverpassError, askOverpass, overpassQuery } from "./overpass";
 
@@ -241,7 +241,16 @@ describe("mergeApproved", () => {
 
     expect(merged).toEqual(approved);
     expect(added).toEqual([]);
-    expect(conflicts).toEqual([{ id: "main-block", fields: ["entranceIds", "id", "name"] }]);
+    expect(conflicts).toEqual([{ id: "main-block", fields: ["id", "name"] }]);
+  });
+
+  it("counts a different list of entrances, but not an empty one from OpenStreetMap", () => {
+    const approved = [record("a", "way/1", { entranceIds: ["a-front"] })];
+
+    expect(mergeApproved(approved, [record("a", "way/1", { entranceIds: [] })])).toMatchObject({ unchanged: ["a"] });
+    expect(mergeApproved(approved, [record("a", "way/1", { entranceIds: ["a-back"] })]).conflicts).toEqual([
+      { id: "a", fields: ["entranceIds"] },
+    ]);
   });
 
   it("does not call a review stamp a difference", () => {
@@ -260,5 +269,24 @@ describe("mergeApproved", () => {
 
     expect(second.merged).toEqual(first.merged);
     expect(second.added).toEqual([]);
+  });
+});
+
+describe("linkEntrances", () => {
+  const building = (id: string, entranceIds: string[]) => ({ type: "Feature", properties: { id, entranceIds } });
+  const entrance = (id: string, buildingId: string) => ({ type: "Feature", properties: { id, buildingId } });
+
+  it("only ever adds an entrance to the list of its own building", () => {
+    const before = [building("library", ["library-front"]), building("canteen", [])];
+    const { buildings, linked } = linkEntrances(before, [
+      entrance("library-side", "library"),
+      entrance("library-front", "library"),
+      entrance("gym-door", "gym"),
+    ]);
+
+    expect(buildings).toEqual([building("library", ["library-front", "library-side"]), building("canteen", [])]);
+    expect(buildings[1]).toBe(before[1]);
+    expect(before[0].properties.entranceIds).toEqual(["library-front"]);
+    expect(linked).toEqual(["library now lists library-side"]);
   });
 });

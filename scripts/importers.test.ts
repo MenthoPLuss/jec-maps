@@ -7,6 +7,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PLACE_COLUMNS, ROOM_COLUMNS, csvRow } from "../src/lib/data/csv";
+import { entrancesFileText } from "../src/lib/review/entrances";
 import { checkDatasetFolder } from "./lib/datasetFolder";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -208,6 +209,55 @@ describe("data:approve", () => {
     expect(code).toBe(1);
     expect(output).toContain(message);
     expect(existsSync(file("src"))).toBe(false);
+  });
+
+  it("approves entrances from the review page, lists them in their building and publishes them", () => {
+    run("approve-data.ts", ...osm("buildings"), "--all", ...as);
+    run("approve-data.ts", ...osm("paths"), "--all", "--access", "public", ...as);
+    mkdirSync(file("raw-data", "candidates"), { recursive: true });
+    const entrances = ["--file", path.join("raw-data", "candidates", "entrances.candidates.geojson")];
+    writeFileSync(
+      file("raw-data", "candidates", "entrances.candidates.geojson"),
+      entrancesFileText([
+        {
+          id: "jec-library-west-door",
+          buildingId: "jec-library",
+          name: "West door",
+          level: 0,
+          access: "public",
+          outdoorNodeId: "osm-node-11",
+          position: [94.2506, 26.7458],
+        },
+      ]),
+    );
+
+    const { code, output } = run("approve-data.ts", ...entrances, "--ids", "jec-library-west-door", ...as);
+
+    expect(code).toBe(0);
+    expect(output).toContain("jec-library now lists jec-library-west-door");
+    const { dataset, issues } = checkDatasetFolder(file("src", "data", "live"));
+    expect(issues.filter((issue) => issue.severity === "error")).toEqual([]);
+    expect(dataset?.buildings.find((building) => building.properties.id === "jec-library")?.properties.entranceIds).toEqual([
+      "jec-library-west-door",
+    ]);
+    expect(dataset?.entrances[0].properties).toMatchObject({ reviewStatus: "reviewed", reviewedBy: "Test Student" });
+    expect(JSON.parse(read("public", "data", "core.json")).entrances).toHaveLength(1);
+
+    // Once is enough, and the buildings don't count as changed afterwards.
+    expect(run("approve-data.ts", ...entrances, "--ids", "jec-library-west-door", ...as).output).toContain("0 new, 1 already approved");
+    expect(run("approve-data.ts", ...osm("buildings"), "--all", ...as).output).not.toContain("kept as approved");
+  });
+
+  it("refuses photo positions, which are only hints", () => {
+    mkdirSync(file("raw-data", "candidates"), { recursive: true });
+    writeFileSync(
+      file("raw-data", "candidates", "entrances.report.json"),
+      JSON.stringify({ candidates: true, kind: "entrance-suggestions", records: [] }),
+    );
+    const { code, output } = run("approve-data.ts", "--file", path.join("raw-data", "candidates", "entrances.report.json"), "--all", ...as);
+
+    expect(code).toBe(1);
+    expect(output).toContain("/review");
   });
 
   it("wants an explicit choice between several campus outlines", () => {

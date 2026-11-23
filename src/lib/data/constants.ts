@@ -35,3 +35,6 @@ export const ROOM_TYPES = [
 
 export type PlaceCategory = (typeof PLACE_CATEGORIES)[number];
 export type RoomType = (typeof ROOM_TYPES)[number];
+
+/** An entrance should be this close to its building's outline and to its path junction. */
+export const ENTRANCE_TOLERANCE_M = 10;

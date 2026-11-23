@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isEditorRequested, isMockRequested, isSafeTileUrl, readConfig } from "./config";
+import { isEditorRequested, isMockRequested, isReviewToolAvailable, isSafeTileUrl, readConfig } from "./config";
 
 const params = (query: string) => new URLSearchParams(query);
 
@@ -39,6 +39,13 @@ describe("demo tools", () => {
   it("?mock=1 does nothing in a normal build", () => {
     expect(isMockRequested(production, params("mock=1"))).toBe(false);
     expect(isEditorRequested(production, params("edit=1"))).toBe(false);
+  });
+
+  it("keeps the review page out of a normal build", () => {
+    expect(isReviewToolAvailable(production, "production")).toBe(false);
+    expect(isReviewToolAvailable(production, undefined)).toBe(false);
+    expect(isReviewToolAvailable(production, "development")).toBe(true);
+    expect(isReviewToolAvailable(demo, "production")).toBe(true);
   });
 
   it("?mock=1 works in a demo build", () => {

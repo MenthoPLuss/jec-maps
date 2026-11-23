@@ -31,11 +31,18 @@ not in Git. The live dataset is used as soon as
 | ------- | ----- | ------ |
 | `data:osm` | OpenStreetMap, only when you run it | candidates in `data-candidates/osm` |
 | `data:build` | `raw-data` on this computer | candidates in `raw-data/candidates` |
-| `data:approve` | candidates | `src/data/live`, never overwriting |
+| `data:approve` | candidates | `src/data/live`, never overwriting, then `public/data` |
 | `data:validate` | `src/data` | nothing |
 | `data:demo` | nothing | `src/data/demo` |
 
 Candidates are proposals. The app never reads them.
+
+The review page (`/review`) helps with `data:approve`. A person opens candidate
+files in it, and they stay in the browser. It shows them over the approved data,
+says which chosen paths would not join the network, and writes the command. For
+entrances it writes a candidate file to download. It writes nothing itself and
+sends nothing anywhere. It exists with `npm run dev` and in demo builds; a normal
+build answers "not found".
 
 ## When is real guidance allowed?
 

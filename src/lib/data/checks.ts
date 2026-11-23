@@ -4,7 +4,7 @@ import { distanceM } from "../geo/distance";
 import { localPlane, segmentIntersection } from "../geo/localPlane";
 import { nearestOnPolyline, polylineCrossings, polylineLengthM } from "../geo/polyline";
 import { JEC_CENTRE, type LngLat } from "../geo/types";
-import { MANIFEST_FILE } from "./constants";
+import { ENTRANCE_TOLERANCE_M, MANIFEST_FILE } from "./constants";
 import type { Dataset, Issue, LevelPlan } from "./parse";
 import type { CorridorFeature, DoorFeature, LevelFeature, RoomShapeFeature, VerticalFeature } from "./schemas";
 
@@ -15,7 +15,6 @@ const NODE_TOLERANCE_M = 0.5;
 const MIN_PATH_M = 0.5;
 /** Path ends closer than this to another path probably should be joined to it. */
 const NEAR_MISS_M = 2;
-const ENTRANCE_TOLERANCE_M = 10;
 
 type Report = (
   severity: Issue["severity"],
